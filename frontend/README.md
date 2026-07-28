@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Quid Frontend
 
-## Getting Started
+Next.js app for the Quid feedback marketplace: landing page, Freighter onboarding, creator and hunter dashboards.
 
-First, run the development server:
+## Stack
+
+- Next.js (App Router) + React + TypeScript
+- Tailwind CSS + shadcn/ui
+- `@stellar/freighter-api` + `@stellar/stellar-sdk`
+- Framer Motion (landing)
+
+## What’s working
+
+- Landing / marketing pages
+- Freighter connect, session restore, testnet Horizon balances / Friendbot
+- Role selection (creator vs hunter) via localStorage
+- Creator and hunter dashboard **UI shells**
+- Creator wallet page with real Horizon payments history
+
+## What’s missing (MVP gaps)
+
+| Area | Status |
+|------|--------|
+| Soroban client using `NEXT_PUBLIC_QUID_*` | Env only — not invoked |
+| Create mission → on-chain escrow | Not wired |
+| Hunter mission board / submissions | Placeholders or mock data |
+| Submit feedback → IPFS → `submit_feedback` | Not wired |
+| Approve → `payout_participant` | Stub / console only |
+| Backend API integration | Not connected |
+| Replace mock quest data | Still hardcoded in several features |
+
+Priority work for contributors: wire Freighter signing to `quid-store`, then replace mocks with backend/indexer data.
+
+## Setup
 
 ```bash
+cd frontend
+npm install
+cp .env.local.example .env.local
+# Fill contract IDs from your testnet deploy
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_QUID_STORE_ID` | `quid-store` contract ID |
+| `NEXT_PUBLIC_QUID_REPUTATION_ID` | `quid-reputation` contract ID |
+| `NEXT_PUBLIC_QUID_MILESTONE_ID` | `quid-milestone-escrow` contract ID |
+| `NEXT_PUBLIC_HORIZON_URL` | Optional Horizon override |
+| `NEXT_PUBLIC_FRIENDBOT_URL` | Optional Friendbot override |
+| `NEXT_PUBLIC_API_URL` | Backend base URL (when integrated) |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run dev          # development server
+npm run build        # production build
+npm run start        # serve production build
+npm run lint
+npm run type-check
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Key routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Route | Description |
+|-------|-------------|
+| `/` | Landing |
+| `/connect-wallet` | Freighter onboarding |
+| `/account-type` | Creator vs hunter |
+| `/creator` | Creator dashboard |
+| `/creator/quests` | Quest list |
+| `/creator/quests/[questId]` | Quest detail / review UI |
+| `/creator/wallet` | Balances + Horizon history |
+| `/hunter` | Hunter dashboard |
+| `/hunter/mission-board` | Mission board (placeholder) |
+| `/hunter/my-submissions` | Submissions (placeholder) |
+| `/missions` | Legacy / stub board |
 
-## Deploy on Vercel
+## Useful paths
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Wallet: `src/lib/freighter-wallet.ts`, `src/context/WalletProvider.tsx`
+- Mock data: `src/features/creators/MockData.ts`, `src/app/hooks/useQuestData.ts`
+- Design notes: `Design.md`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Related docs
+
+- Root: [../README.md](../README.md)
+- Backend: [../backend/README.md](../backend/README.md)
+- Contracts: [../quid-contract/README.md](../quid-contract/README.md)

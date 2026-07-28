@@ -6,7 +6,7 @@ export const ONBOARDING_ROUTES = {
   signUp: '/connect-wallet',
   accountType: '/account-type',
   creator: '/creator',
-  hunter: '/missions',
+  hunter: '/hunter',
 } as const;
 
 export function saveUserRole(role: UserRole): void {

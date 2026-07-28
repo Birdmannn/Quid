@@ -48,12 +48,12 @@ export default function ConnectWalletPage() {
     : '';
 
   return (
-    <div className="min-h-screen bg-[#0b0a11] text-white grid place-items-center">
+    <div className="min-h-screen bg-[#0b0a11] text-white grid place-items-center overflow-x-hidden">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-[radial-gradient(75%_120%_at_50%_-5%,rgba(124,44,255,0.45)_0%,rgba(12,10,20,0.2)_55%,rgba(8,8,12,0.96)_100%)]" />
       </div>
 
-      <div className="relative z-10 flex flex-col items-center px-4 pb-12">
+      <div className="relative z-10 flex flex-col items-center px-4 pb-12 w-full max-w-sm">
         <Image
           src="/Quid Logo.png"
           alt="Quid Logo"
@@ -76,7 +76,7 @@ export default function ConnectWalletPage() {
           )}
         </div>
 
-        <div className="flex flex-col gap-6 w-80 bg-transparent backdrop-blur-md border border-white/10 shadow-xl rounded-2xl pt-4 mt-10">
+        <div className="flex flex-col gap-6 w-full bg-transparent backdrop-blur-md border border-white/10 shadow-xl rounded-2xl pt-4 mt-10">
           <div className="flex flex-col gap-y-3">
             {availableWallets.map((wallet) => {
               const isActive = connected && walletName === wallet.name;
@@ -86,7 +86,7 @@ export default function ConnectWalletPage() {
                   key={wallet.id}
                   type="button"
                   disabled={isConnecting}
-                  className={`flex px-2 py-2 rounded-lg backdrop-blur-md border shadow-xl justify-between w-72 mx-auto transition-colors disabled:opacity-60 ${
+                  className={`flex px-3 py-2.5 min-h-11 items-center rounded-lg backdrop-blur-md border shadow-xl justify-between w-full transition-colors disabled:opacity-60 ${
                     isActive
                       ? 'bg-[#9011FF]/30 border-[#9011FF]/50'
                       : 'bg-white/20 border-white/10 hover:bg-white/30'
@@ -140,7 +140,7 @@ export default function ConnectWalletPage() {
           </button>
         )}
 
-        <div className="mt-8 w-80 border rounded-md border-pink-300 mx-auto py-4 flex gap-2 items-center px-2">
+        <div className="mt-8 w-full border rounded-md border-pink-300 mx-auto py-4 flex gap-2 items-center px-2">
           <OctagonAlert className="text-2xl text-pink-300 shrink-0" />
           <p className="text-[10px]">
             Quid will never ask for your private keys or seed phrases. Only

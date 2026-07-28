@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { HiBriefcase } from "react-icons/hi2";
+import briefcaseIcon from "../../../public/quest-detail/briefcase-icon.png";
+import stellarIcon from "../../../public/quest-detail/stellar-icon.png";
 
 export default function QuestItem({
   title,
@@ -9,7 +10,7 @@ export default function QuestItem({
   reward,
   deadline,
   score,
-  id
+  id,
 }: {
   title: string;
   tag?: string;
@@ -17,51 +18,65 @@ export default function QuestItem({
   reward: string;
   deadline: string;
   score: number;
-  id: string
+  id: string;
 }) {
   return (
     <Link
       href={`/creator/quests/${id}`}
-      className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 md:gap-0 border-b border-b-[#241B4A] pb-4 cursor-pointer hover:bg-neutral-800"
+      className="group grid gap-5 sm:grid-cols-[96px_1fr_auto] sm:items-center"
     >
-      {/* Left Section */}
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-4">
-        <Image src="/namelogo.png" alt="Logo" width={72} height={72} />
+      <Image
+        src="/namelogo.png"
+        alt=""
+        width={96}
+        height={96}
+        className="size-20 rounded-lg object-cover sm:size-24"
+      />
 
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <h4>{title}</h4>
-            {tag && (
-              <span className="bg-[#9011FF] rounded-lg text-white text-xs px-2 py-1">
-                {tag}
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-4 text-sm">
-            <div className="flex items-center gap-1">
-              <HiBriefcase className="w-[12.67px] h-[12.67px]" />
-              <span>{category}</span>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <Image
-                src="/stellarlogo.png"
-                alt="Logo"
-                width={12.67}
-                height={12.67}
-              />
-              <span>{reward}</span>
-            </div>
-
-            <span className="text-xs text-[#8C86B8]">{deadline}</span>
-          </div>
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="truncate text-2xl font-semibold text-white transition-colors group-hover:text-[#B78CFF]">
+            {title}
+          </h2>
+          {tag ? (
+            <span className="rounded-lg bg-[#9011FF] px-2 py-1 text-xs text-white">
+              {tag}
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm text-white/65">
+          <span className="flex items-center gap-2">
+            <Image
+              src={briefcaseIcon}
+              alt=""
+              width={14}
+              height={14}
+              className="h-3.5 w-3.5"
+            />
+            {category}
+          </span>
+          <span className="flex items-center gap-2">
+            <Image
+              src={stellarIcon}
+              alt=""
+              width={14}
+              height={14}
+              className="h-3.5 w-3.5"
+            />
+            {reward}
+          </span>
+          <span className="text-xs text-[#8C86B8]">{deadline}</span>
         </div>
       </div>
 
-      {/* Right Section (Score) */}
-      <div className="flex items-center gap-1.5">
-        <HiBriefcase className="w-[19px] h-[19px] text-[#9011FF]" />
+      <div className="flex items-center gap-1.5 text-3xl font-bold text-white">
+        <Image
+          src={briefcaseIcon}
+          alt=""
+          width={19}
+          height={19}
+          className="h-[19px] w-[19px]"
+        />
         <span>{score}</span>
       </div>
     </Link>

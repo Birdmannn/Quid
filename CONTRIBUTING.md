@@ -1,137 +1,111 @@
-# Contributing to Quid 🦑
+# Contributing to Quid
 
-Welcome to the Quid codebase!
+Thanks for helping build Quid — a Stellar feedback marketplace for founders and hunters.
 
-We are thrilled that you're interested in contributing. Quid isn't just another dApp; it is a critical piece of infrastructure for the Stellar ecosystem. We are solving the "Ghost Town" problem in Web3 product development by creating a liquid marketplace for honest feedback.
+## Why Quid
 
-Whether you're a Rustacean, a React wizard, or a design pro, there is a place for you here.
+Founders launch dApps into quiet Discords. Real users rarely spend 20 minutes testing edge cases. Quid turns feedback into an escrowed transaction: founders lock rewards, hunters submit proof, payouts happen on-chain when approved.
 
-## 🚀 The Pitch: Why Build Quid?
+## Repo map
 
-### The Problem
+| Path | What you’ll work on |
+|------|---------------------|
+| `frontend/` | Next.js UI, Freighter, creator/hunter flows |
+| `backend/` | NestJS auth, mission index, IPFS upload, indexer |
+| `quid-contract/` | Soroban contracts (`quid-store`, reputation, milestone escrow) |
 
-Building on-chain is lonely. Founders launch dApps to empty Discord channels. When they do get feedback, it's often low-effort spam from airdrop farmers ("Good project sir!").
+Read the README in each package before starting.
 
-- **No Incentive**: Real users have no reason to spend 20 minutes testing your edge cases.
-- **No Trust**: Founders can't verify if a user actually used the protocol or just looked at the landing page.
+## Prerequisites
 
-### The Quid Solution
+- Node.js 18+
+- Docker (backend Postgres)
+- Rust + [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools)
+- Freighter (testnet)
 
-Quid is "Feedback-as-a-Service" (FaaS). We turn feedback into a transaction.
-
-- **For Founders**: It's a Bounty Vault. You lock funds, and you only pay for feedback that actually helps you.
-- **For Users**: It's a Job Board. You get paid instantly in USDC/XLM for your time and expertise.
-
-**The "Secret Sauce"**: We use on-chain data (Transaction History, Asset Holdings) to verify that the feedback comes from a real, active human—not a bot.
-
-## ✨ Core Features (Expanded)
-
-These are the pillars of the platform. When you pick up an issue, you are likely building a part of one of these systems.
-
-### 1. The Bounty Vault (Smart Contract)
-
-At the heart of Quid is the QuidStore contract. It replaces the need for "trust."
-
-- **Escrow Logic**: When a Founder creates a Mission, the reward pool (e.g., 500 USDC) is pulled from their wallet and locked in the contract. Users know the money is there.
-- **Refund Mechanism**: If a mission expires or is canceled, the contract automatically calculates the remaining funds and refunds the Founder. We never hold user funds hostage.
-
-### 2. Proof-of-Feedback (Hybrid Storage)
-
-We don't clutter the Stellar ledger with paragraphs of text. We use a hybrid approach:
-
-- **Off-Chain (IPFS)**: The actual feedback (long text, screenshots, screen recordings) is hashed and pinned to IPFS.
-- **On-Chain (Soroban)**: Only the CID (Content Identifier) is stored in the smart contract. This keeps gas costs low while maintaining data immutability.
-
-### 3. Asset Gating (The Quality Filter)
-
-This is our anti-spam defense. Founders can set requirements for who can enter a mission.
-
-- **Token Gating**: "You must hold at least 50 AQUA to join this mission."
-- **NFT Gating**: "Only holders of the 'Early Adopter' NFT can provide feedback."
-
-**Dev Note**: This checks the user's balance on-chain before allowing the `submit_feedback` transaction.
-
-### 4. The Reputation Engine
-
-We track a user's value on-chain.
-
-- **Stats**: Every time a user's submission is "Approved" and paid out, their `successful_missions` counter increments.
-- **Trust Score**: Future features will calculate a score based on `Earnings / Submissions`. High-reputation users will eventually get access to exclusive, high-paying missions.
-
-## 🛠️ Development Setup
-
-### 1. Prerequisites
-
-- Rust (Latest Stable)
-- Node.js (v18+)
-- Soroban CLI
-- Freighter Wallet
-
-### 2. Setting up the Monorepo
+## Local setup
 
 ```bash
-# Clone the repo
-git clone https://github.com/YOUR_USERNAME/quid.git
-cd quid
+git clone https://github.com/Quid-proquo/Quid.git
+cd Quid
 
-# Install dependencies for frontend
-cd web
+# Frontend
+cd frontend
 npm install
+cp .env.local.example .env.local
+npm run dev
+
+# Backend (separate terminal)
+cd backend
+docker compose up -d
+cp .env.example .env          # set JWT_SECRET + STELLAR_SERVER_SECRET
+npm install
+npm run prisma:migrate
+npm run start:dev
+
+# Contracts
+cd quid-contract
+stellar contract build
+cargo test
 ```
 
-### 3. Running the Smart Contracts
+Deploy steps: see [quid-contract/README.md](./quid-contract/README.md).
 
-We use a Makefile to simplify Soroban commands.
+## Where help is needed (MVP)
 
-```bash
-cd contracts/quid-store
+Highest impact:
 
-# Build the contract
-make build
+1. **Frontend Soroban client** — invoke `quid-store` with Freighter (`NEXT_PUBLIC_QUID_STORE_ID`)
+2. **Backend IPFS upload** — replace upload stub with real pinning + CID
+3. **Backend indexer** — sync contract events into Postgres
+4. **Wire dashboards** — replace mock quest data with API / chain reads
+5. **Contract polish** — `reject_submission`, expiry refunds, reputation on payout
 
-# Run unit tests (Please run this before pushing!)
-make test
-```
+See package READMEs for detailed “what’s missing” tables.
 
-## 🤝 How to Contribute
+## Finding an issue
 
-### Finding an Issue
+Use labels:
 
-Navigate to the **Issues Tab**.
+- `good first issue` — small, well-scoped
+- `help wanted` — needs an owner
+- `priority` — MVP-critical
+- `frontend` / `backend` / `contracts` / `design`
 
-- **good first issue**: Perfect for newcomers. Usually UI tweaks or simple contract helpers.
-- **help wanted**: A bit more complex, but we definitely need hands on deck.
-- **priority**: Critical features for the MVP.
+Comment on the issue before starting so work isn’t duplicated.
 
-### The Workflow
+## Workflow
 
-1. **Assign Yourself**: Comment on the issue "I'd like to work on this!" so we don't duplicate work.
-2. **Branch Out**: Create a branch using the convention: `type/short-description`.
-   - `feat/create-mission-form`
-   - `fix/wallet-connection`
-   - `chore/update-readme`
-3. **Commit**: Write clear commit messages.
-4. **Pull Request**: Open a PR to `main`.
-   - Link the issue (e.g., "Closes #4").
-   - Include screenshots if you changed the UI.
-   - Include test results if you changed the Contract.
+1. Branch: `feat/...`, `fix/...`, `chore/...`, `docs/...`
+2. Keep PRs focused; link the issue (`Closes #123`)
+3. Include screenshots for UI; include `cargo test` / `npm test` notes for logic changes
+4. Open PR against `main`
 
-## 📜 Coding Standards
+## Coding standards
 
-### Rust (Smart Contracts)
+### Rust (contracts)
 
-- **Safety First**: Never use `.unwrap()` in production code. Always handle errors with `Result<T, E>`.
-- **Gas Optimization**: Avoid large loops. Use Persistent storage for main data and Instance storage for counters.
-- **Formatting**: Run `cargo fmt` before committing.
+- Prefer `Result` over `.unwrap()` in contract logic
+- Keep storage lean; extend TTL where the codebase already does
+- Run `cargo fmt` and tests before pushing
 
-### React (Frontend)
+### TypeScript (frontend / backend)
 
-- **Components**: Use functional components and Hooks.
-- **Styling**: Use Tailwind CSS utility classes. Avoid inline styles.
-- **Types**: strict TypeScript mode is on. No `any`!
+- Strict TypeScript — avoid `any`
+- Frontend: functional components + Tailwind
+- Backend: Nest modules, DTOs with `class-validator`
 
-## ⚖️ Code of Conduct
+## Design contributions
 
-We are building a community of trust. Harassment, hate speech, or spamming will not be tolerated. Be kind, be constructive, and let's build something amazing together.
+See `frontend/Design.md`. Prefer issues for:
 
-Ready to ship? Let's go! 🦑
+- Mission card states, create-mission wizard, submit/review flows
+- Empty / loading / error states
+- Mobile hunter board
+- Design tokens aligned with the dark Quid brand
+
+## Code of conduct
+
+Be respectful. No harassment, hate speech, or spam. We’re building a trust marketplace — start in the repo.
+
+Ready to ship.

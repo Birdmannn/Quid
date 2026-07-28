@@ -48,7 +48,7 @@ const availableQuests = [
 
 function CompletedState() {
   return (
-    <div className="text-center text-[#8C86B8] py-12">
+    <div className="py-12 text-center text-white/50">
       <p>No completed quests yet.</p>
     </div>
   );
@@ -57,37 +57,41 @@ function CompletedState() {
 export default function Questlist() {
   const [activeTab, setActiveTab] = useState<Tab>("available");
 
-
   return (
     <div>
-      {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-6 border-b border-[#241B4A] text-sm font-medium text-[#8C86B8]">
-        {tabs.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={`pb-3 relative ${
-              activeTab === tab.value
-                ? "text-white after:absolute after:left-0 after:bottom-[-1px] after:h-[2px] after:w-full after:bg-[#B48CFF]"
-                : ""
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div
+        className="flex gap-8 border-b border-white/10 text-lg font-semibold text-white/40"
+        role="tablist"
+        aria-label="Quest filters"
+      >
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.value;
+
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.value)}
+              className={`relative pb-4 transition-colors hover:text-white ${
+                isActive ? "text-[#B78CFF]" : ""
+              }`}
+            >
+              {tab.label}
+              {isActive ? (
+                <span className="absolute inset-x-0 bottom-[-1px] h-0.5 bg-[#B78CFF]" />
+              ) : null}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Content */}
-      <div className="pt-6 flex flex-col gap-6">
+      <div className="flex flex-col gap-9 pt-7 pb-12">
         {activeTab === "available" ? (
-          <div
-            className="flex flex-col gap-6 "
-           
-          >
-            {availableQuests.map((quest, idx) => (
-              <QuestItem key={idx} {...quest} />
-            ))}
-          </div>
+          availableQuests.map((quest) => (
+            <QuestItem key={quest.id} {...quest} />
+          ))
         ) : (
           <CompletedState />
         )}

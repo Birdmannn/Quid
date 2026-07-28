@@ -6,7 +6,7 @@ import QuestRowMenu from "./QuestRowMenu";
 import type { QuestRowData } from "./types";
 
 const TAG_STYLES: Record<QuestRowData["tagVariant"], string> = {
-  active: "bg-[#9011FF]/20 text-[#B78CFF]",
+  active: "bg-[#8B5CF6]/20 text-[#B78CFF]",
   draft: "bg-white/10 text-white/60",
   completed: "bg-emerald-500/15 text-emerald-400",
 };

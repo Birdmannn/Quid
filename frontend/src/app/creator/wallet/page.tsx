@@ -11,8 +11,6 @@ import {
   ExternalLink,
   AlertTriangle,
   Droplets,
-  Bell,
-  ChevronDown,
   ArrowDownToLine,
   ArrowDownLeft,
   ArrowUpRight,
@@ -95,8 +93,8 @@ export default function WalletPage() {
   if (!isConnected || !publicKey) {
     return (
       <div className="text-white">
-        <WalletTopBar onRefresh={refreshBalances} loading={loading} />
-        <div className="px-4 sm:px-6 lg:px-8 py-8">
+        <WalletPageToolbar onRefresh={refreshBalances} loading={loading} />
+        <div className="px-5 py-8 sm:px-8 lg:px-12">
           <div className="max-w-md mx-auto mt-16 bg-[#141026] border border-[#241B4A] rounded-2xl p-8 text-center">
             <Wallet className="w-12 h-12 text-[#9011FF] mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">No wallet connected</h2>
@@ -117,9 +115,9 @@ export default function WalletPage() {
 
   return (
     <div className="text-white">
-      <WalletTopBar onRefresh={refreshBalances} loading={loading} />
+      <WalletPageToolbar onRefresh={refreshBalances} loading={loading} />
 
-      <div className="px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="space-y-6 px-5 py-6 sm:px-8 lg:px-12">
         {error && (
           <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl px-4 py-3 text-sm">
             <AlertTriangle className="w-5 h-5 shrink-0" />
@@ -408,7 +406,7 @@ export default function WalletPage() {
   );
 }
 
-function WalletTopBar({
+function WalletPageToolbar({
   onRefresh,
   loading,
 }: {
@@ -416,43 +414,19 @@ function WalletTopBar({
   loading: boolean;
 }) {
   return (
-    <header className="sticky top-0 z-20 bg-[#0C0A14] border-b border-[#241B4A]">
-      <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <h1 className="text-lg sm:text-xl font-semibold">Wallet</h1>
-
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            aria-label="Refresh balances"
-            className="flex items-center justify-center min-h-9 min-w-9 rounded-lg hover:bg-[#1B1540] transition-colors disabled:opacity-50"
-          >
-            <RefreshCw
-              className={`w-5 h-5 text-[#8C86B8] ${loading ? "animate-spin" : ""}`}
-            />
-          </button>
-
-          <button
-            aria-label="Notifications"
-            className="flex items-center justify-center min-h-9 min-w-9 rounded-lg hover:bg-[#1B1540] transition-colors"
-          >
-            <Bell className="w-5 h-5 text-[#8C86B8]" />
-          </button>
-
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-[#1B1540]/60 rounded-lg">
-            <Wallet className="w-4 h-4" />
-            <span className="text-sm font-medium">$0</span>
-          </div>
-
-          <button className="flex items-center gap-1.5 hover:bg-[#1B1540] rounded-lg px-2 py-1.5 transition-colors">
-            <Image src="/namelogo.png" alt="Profile" width={24} height={24} />
-            <span className="hidden sm:block text-sm font-medium">
-              Ruze.stellar
-            </span>
-            <ChevronDown className="hidden sm:block w-4 h-4 text-[#8C86B8]" />
-          </button>
-        </div>
-      </div>
-    </header>
+    <div className="flex items-center justify-between border-b border-white/10 px-5 py-5 sm:px-8 lg:px-12">
+      <h1 className="text-xl font-semibold sm:text-2xl">Wallet</h1>
+      <button
+        type="button"
+        onClick={onRefresh}
+        disabled={loading}
+        aria-label="Refresh balances"
+        className="flex min-h-9 min-w-9 items-center justify-center rounded-lg transition-colors hover:bg-white/5 disabled:opacity-50"
+      >
+        <RefreshCw
+          className={`size-5 text-white/70 ${loading ? "animate-spin" : ""}`}
+        />
+      </button>
+    </div>
   );
 }

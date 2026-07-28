@@ -1,81 +1,123 @@
+<img width="161" height="87" alt="Quid" src="https://github.com/user-attachments/assets/70d1ce77-641c-445b-911d-971a8908593d" />
 
-<img width="161" height="87" alt="image" src="https://github.com/user-attachments/assets/70d1ce77-641c-445b-911d-971a8908593d" />
+# Quid
 
+Quid is a feedback marketplace on **Stellar / Soroban**. Founders lock USDC/XLM bounties for honest dApp feedback; hunters earn rewards for useful submissions.
 
-Quid is a feedback marketplace built on the Stellar blockchain that connects founders who need honest dApp feedback with users who provide valuable insights for USDC rewards.
+## The problem
 
-## The Problem
-Building in Web3 is hard. Getting early, high-quality feedback is even harder.
-- **Founders** struggle to find real users to test their dApps.
-- **Users** have no incentive to provide detailed, constructive criticism.
-- **Feedback** is often lost in Discord channels or is spam from bots.
+- Founders struggle to find real users to test their dApps.
+- Users have little incentive to write detailed, constructive feedback.
+- Discord feedback is often spam or lost in noise.
 
-## The Solution
-Quid creates a trustless **"Bounty Vault"** for feedback.
-1. **Founders** create a Mission and lock funds (USDC/XLM) in a smart contract.
-2. **Hunters** submit proof of work (screenshots/feedback) via IPFS.
-3. **Smart Contracts** handle the payout only when feedback is approved.
+## The solution
 
-##  Core Features
+1. **Founders** create a Mission and escrow rewards in `quid-store`.
+2. **Hunters** submit feedback (text / screenshots) via IPFS; only the CID goes on-chain.
+3. **Payout** happens from the smart contract when the founder approves.
 
-### 1. The Bounty Vault
-Funds are escrowed on-chain the moment a mission is created. Users can see the balance in the smart contract, guaranteeing that the money exists before they start working.
+### Core features
 
-### 2. Hybrid Storage (Proof-of-Feedback)
-We utilize a gas-efficient architecture. Large data (feedback text, screenshots, recordings) is pinned to IPFS, while only the cryptographic hash (CID) is stored on the Stellar ledger.
+| Feature | Description |
+|---------|-------------|
+| **Bounty Vault** | Rewards locked on-chain when a mission is created |
+| **Hybrid storage** | Feedback on IPFS; CID on Soroban |
+| **Asset gating** | Optional token/NFT holdings required to submit |
+| **Reputation** | On-chain attestations / profiles for quality contributors |
 
-### 3. Asset Gating (Anti-Spam)
-Founders can filter for quality by requiring hunters to hold specific assets.
-* *Example:* "Only users holding > 500 AQUA can join this mission."
-* *Example:* "Must hold the 'Early Adopter' NFT."
+## Repository layout
 
-### 4. Reputation Engine
-Quid tracks a user's history on-chain. Every approved submission increments a user's "Successful Missions" counter, building a verifiable resume of high-quality contributions.
+```text
+Quid/
+├── frontend/          # Next.js app (Freighter, creator + hunter UI)
+├── backend/           # NestJS API (auth, missions index, upload, indexer)
+├── quid-contract/     # Soroban contracts (store, reputation, milestone escrow)
+└── CONTRIBUTING.md
+```
 
----
-The platform is split into two main experiences, depending on your role.
+## Architecture
 
-### 1. For Founders (Getting Feedback)
+```text
+Freighter wallet
+      │
+      ▼
+Frontend (Next.js) ──────► Backend (NestJS + Postgres)
+      │                         │
+      │ create / submit / pay   │ index events, drafts, IPFS
+      ▼                         ▼
+Soroban contracts ◄─────────────┘
+(quid-store, quid-reputation, quid-milestone-escrow)
+      │
+      ▼
+IPFS (feedback blobs; CID stored on-chain)
+```
 
-As a Founder, you need to understand if your dApp is hitting the mark. Quid helps you do that efficiently.
+**Current status (honest):** Contracts are implemented and deployable. Frontend has Freighter + Horizon wiring and polished UI shells, but marketplace data is still mostly mock and contract IDs are not invoked yet. Backend has SEP-10 auth, mission reads/drafts, and stubs for IPFS upload + chain indexer. The MVP gap is wiring **create → submit → approve → payout** end-to-end.
 
--   **Create a Mission:** Easily create a new feedback campaign (a "Mission") by filling out a simple form and more to come 🥂:
-    -   **Title:** A clear name for your feedback request.
-    -   **dApp URL:** The link to the project you want feedback on.
-    -   **Reward per user:** How much USDC you'll pay each user for their feedback.
-    -   **Max Participants:** The maximum number of users you need.
--   **Track Your Missions:** The Founder Dashboard displays all your active missions, showing how many responses you've received out of the total you requested.
+## Tech stack
 
+| Layer | Stack |
+|-------|--------|
+| Frontend | Next.js, React, TypeScript, Tailwind, shadcn/ui, Freighter, Stellar SDK |
+| Backend | NestJS, Prisma, PostgreSQL, SEP-10 / JWT |
+| Contracts | Rust, Soroban SDK 23, Stellar CLI |
+| Payments | USDC / XLM on Stellar |
 
-### 2. For Users (Giving Feedback)
+## Quick start
 
-As a User, you can leverage your experience with dApps to earn rewards.
+### Prerequisites
 
--   **The Mission Board:** This is where you find all available feedback opportunities.
--   **Browse and Start Missions:** View a grid of available missions, see the reward for each, and simply click "Start Mission" to begin.
--   **Submit Feedback:** On the mission detail page, you get:
-    -   Clear instructions from the Founder.
-    -   A text area to write down your thoughts.
-    -   An uploader for screenshots or recordings as proof.
--   **Get Paid:** Once you submit, your feedback is sent to the Founder, and you're in line to receive your USDC reward.
+- Node.js 18+
+- Docker (for Postgres)
+- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools) (for contracts)
+- [Freighter](https://www.freighter.app/) wallet (testnet)
 
+### Frontend
 
-### 3. Wallet Connection
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local   # or create .env.local (see frontend/README.md)
+npm run dev
+```
 
--   **Connect Your Wallet:** The application uses a "Connect Wallet" button, simulating a connection to a Stellar wallet like Freighter.
--   **Identity:** Once connected, your wallet address (e.g., `G...ABCD`) is shown, acting as your identity on the platform.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Tech Stack
+### Backend
 
--   **Framework:** React with TypeScript for a robust and scalable frontend.
--   **Styling:** Tailwind CSS for a utility-first, clean, and responsive design. The components will use `Shadcn/UI` library.
--   **Icons:** `Lucide-React` icons.
--   **Blockchain:** Stellar + Soroban (Smart Contracts).
--   **Identity:** Freighter Wallet + On-chain transaction history.
--   **Payments:** USDC (Stellar Assets).
+```bash
+cd backend
+docker compose up -d
+cp .env.example .env               # fill STELLAR_SERVER_SECRET, JWT_SECRET
+npm install
+npm run prisma:migrate
+npm run start:dev
+```
 
-## How to Start
-1. Connect your Stellar wallet.
-2. If you are a founder, deposit a bounty and post a mission.
-3. If you are a user, pick a mission and share your thoughts.
-4. Get paid.
+API defaults to [http://localhost:3001](http://localhost:3001).
+
+### Contracts
+
+```bash
+cd quid-contract
+stellar contract build
+# deploy steps: see quid-contract/README.md
+```
+
+## Roles
+
+### Founders (creators)
+
+Create a mission (title, dApp URL, reward per hunter, max participants), escrow funds, review submissions, approve payouts.
+
+### Hunters (users)
+
+Browse the mission board, submit feedback + proof, get paid in USDC/XLM when approved.
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Pick issues labeled `good first issue`, `help wanted`, or `priority`.
+
+## License
+
+See the repository license file.

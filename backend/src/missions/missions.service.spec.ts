@@ -458,4 +458,32 @@ describe('MissionsService', () => {
       expect(result).toEqual(updatedDraft);
     });
   });
+
+  describe('getLatestDraft', () => {
+    it('returns the most recently updated draft for the owner', async () => {
+      const latestDraft = {
+        id: 'draft-2',
+        ownerAddress: '0xabc',
+        title: 'Latest Draft',
+        data: { step: 3 },
+      };
+      prisma.missionDraft.findFirst.mockResolvedValue(latestDraft);
+
+      await expect(service.getLatestDraft('0xabc')).resolves.toEqual(
+        latestDraft,
+      );
+      expect(prisma.missionDraft.findFirst).toHaveBeenCalledWith({
+        where: { ownerAddress: '0xabc' },
+        orderBy: { updatedAt: 'desc' },
+      });
+    });
+
+    it('throws NotFoundException when the owner has no draft', async () => {
+      prisma.missionDraft.findFirst.mockResolvedValue(null);
+
+      await expect(service.getLatestDraft('0xabc')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
 });

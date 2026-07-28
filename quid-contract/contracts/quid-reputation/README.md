@@ -1,141 +1,84 @@
 # Quid Reputation Contract
 
-
-The Quid Reputation contract implements an on-chain attestation system for tracking contributor activity and reputation.
+On-chain attestation and profile system for Quid contributors.
 
 ## Features
 
-- **Issue Attestations**: Create portable attestations for contributor activity with metadata and optional expiry
-- **Revoke Attestations**: Issuers can revoke attestations they've issued
-- **Admin Management**: Bootstrap and manage contract admin
-- **Event Logging**: Publish events when attestations are issued or revoked
+- Bootstrap a single admin (`initialize`)
+- Issue / get / revoke attestations (CID-backed metadata)
+- Set / get reputation profiles (`score`, `missions_completed`, `missions_created`)
+- Emit `AttestationRevokedEvent` on revoke
 
 ## API
 
-### `bootstrap_admin(env, admin) -> Result<(), QuidError>`
+### `initialize(env, admin) -> Result<(), ReputationError>`
 
-Initialize the contract admin. Can only be called once.
+Set the contract admin. Callable once; admin must authorize.
 
-**Parameters:**
+### `get_admin(env) -> Result<Address, ReputationError>`
 
-- `env`: Soroban environment
-- `admin`: Address of the admin
+Return the admin address.
 
-**Returns:**
+### `issue_attestation(env, issuer, subject, attestation_type, data_cid) -> Result<u64, ReputationError>`
 
-- `Ok(())` on success
-- `Err(QuidError::NotAuthorized)` if admin is already set
+Issue an attestation. Issuer must authorize. Returns the new attestation ID.
 
----
+| Param | Meaning |
+|-------|---------|
+| `issuer` | Who issues the attestation |
+| `subject` | Who it is about |
+| `attestation_type` | Type label (string) |
+| `data_cid` | IPFS CID for off-chain metadata |
 
-### `get_admin(env) -> Result<Address, QuidError>`
+### `get_attestation(env, attestation_id) -> Result<Attestation, ReputationError>`
 
-Get the current contract admin.
+Load an attestation by ID.
 
-**Parameters:**
+### `revoke_attestation(env, caller, attestation_id) -> Result<(), ReputationError>`
 
-- `env`: Soroban environment
+Revoke an attestation. Caller must be the issuer or admin.
 
-**Returns:**
+### `get_attestation_count(env) -> u64`
 
-- `Ok(Address)` - The admin address
-- `Err(QuidError::AdminNotSet)` if no admin is set
+Total attestations issued (counter).
 
----
+### `attestation_exists(env, attestation_id) -> bool`
 
-### `issue_attestation(env, issuer, subject, kind, label, metadata_cid, expires_at) -> Result<u64, QuidError>`
+### `set_profile(env, profile) -> Result<(), ReputationError>`
 
-Issue an attestation for a subject.
+Upsert a `Profile`. Subject must authorize.
 
-**Parameters:**
+### `get_profile(env, subject) -> Result<Profile, ReputationError>`
 
-- `env`: Soroban environment
-- `issuer`: Address of the issuer (must authorize the transaction)
-- `subject`: Address of the attestation subject
-- `kind`: String describing the attestation type (e.g., "contributor", "expert")
-- `label`: String label for the attestation (must not be empty)
-- `metadata_cid`: Optional IPFS CID for additional metadata
-- `expires_at`: Optional timestamp when the attestation expires
+### `profile_exists(env, subject) -> bool`
 
-**Returns:**
+## Types
 
-- `Ok(u64)` - The attestation ID
-- `Err(QuidError::NotAuthorized)` if issuer doesn't authorize
-- `Err(QuidError::InvalidLabel)` if label is empty
-- `Err(QuidError::InvalidExpiryTime)` if expiry is in the past
-
-**Events:**
-
-- Publishes `AttestationIssuedEvent` with attestation_id, issuer, and subject
-
----
-
-### `get_attestation(env, attestation_id) -> Result<Attestation, QuidError>`
-
-Retrieve an attestation by ID.
-
-**Parameters:**
-
-- `env`: Soroban environment
-- `attestation_id`: The attestation ID
-
-**Returns:**
-
-- `Ok(Attestation)` - The attestation record
-- `Err(QuidError::AttestationNotFound)` if attestation doesn't exist
-
----
-
-### `revoke_attestation(env, attestation_id) -> Result<(), QuidError>`
-
-Revoke an attestation (issuer only).
-
-**Parameters:**
-
-- `env`: Soroban environment
-- `attestation_id`: The attestation ID to revoke
-
-**Returns:**
-
-- `Ok(())` on success
-- `Err(QuidError::NotAuthorized)` if not the issuer
-- `Err(QuidError::AttestationNotFound)` if attestation doesn't exist
-- `Err(QuidError::AlreadyRevoked)` if already revoked
-
-**Events:**
-
-- Publishes `AttestationRevokedEvent` with attestation_id
-
-## Data Structures
-
-### Attestation
-
-```rust
-pub struct Attestation {
-    pub id: u64,
-    pub issuer: Address,
-    pub subject: Address,
-    pub kind: String,
-    pub label: String,
-    pub metadata_cid: Option<String>,
-    pub issued_at: u64,
-    pub expires_at: Option<u64>,
-    pub revoked: bool,
-}
+```text
+Attestation { id, issuer, subject, attestation_type, data_cid, issued_at, revoked }
+Profile     { subject, score, missions_completed, missions_created }
 ```
 
-## Testing
-
-Run tests with:
+## Initialize after deploy
 
 ```bash
-cargo test
+stellar contract invoke \
+  --id <REPUTATION_CONTRACT_ID> \
+  --source alice \
+  --network testnet \
+  -- \
+  initialize \
+  --admin alice
 ```
 
-## Build
+## Known gaps
 
-Build the contract with:
+- No automatic `missions_completed` / score bump from `quid-store` payouts yet
+- No attestation expiry field (older docs mentioned `expires_at` — not in current code)
+- No issued-event (only revoke event today)
+
+## Tests
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+cargo test -p quid-reputation
 ```

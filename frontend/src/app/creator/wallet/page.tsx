@@ -17,24 +17,13 @@ import {
 } from "lucide-react";
 import { useWallet } from "@/app/hooks/useWallet";
 
-/** App-level earnings figure shown on the balance card. There is no earnings
- * API yet, so this uses a placeholder (consistent with the project's MockData
- * approach); the on-chain XLM/USDC balances and transactions below are real. */
-const EARNINGS_USD = 2150.02;
-const MIN_WITHDRAWAL_USD = 25;
+
 
 function formatXlm(value: string | null): string {
   if (value === null) return "0";
   const n = Number(value);
   if (Number.isNaN(n)) return value;
   return n.toLocaleString("en-US", { maximumFractionDigits: 7 });
-}
-
-function formatUsd(value: number): string {
-  return value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function truncateKey(key: string): string {
@@ -87,8 +76,6 @@ export default function WalletPage() {
       console.error("Copy failed:", err);
     }
   };
-
-  const [usdWhole, usdFraction] = formatUsd(EARNINGS_USD).split(".");
 
   if (!isConnected || !publicKey) {
     return (
@@ -162,85 +149,78 @@ export default function WalletPage() {
           </div>
         )}
 
-        {/* Wallet Balance card */}
+        {/* Wallet Balance card — real on-chain balances only */}
         <div className="rounded-2xl border border-[#241B4A] bg-gradient-to-br from-[#1A1330] to-[#141026] p-6 sm:p-8">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 text-[#CFC9FF] mb-3">
                 <Wallet className="w-5 h-5" />
-                <span className="text-sm font-medium">Wallet Balance</span>
+                <span className="text-sm font-medium">Horizon Balances</span>
               </div>
 
-              <div className="flex items-baseline">
-                <span className="text-4xl sm:text-5xl font-bold tabular-nums">
-                  ${usdWhole}
-                </span>
-                <span className="text-2xl sm:text-3xl font-bold text-[#6B6494]">
-                  .{usdFraction}
-                </span>
-              </div>
-
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#8C86B8]">
-                <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div className="flex items-center gap-2">
                   <Image
                     src="/stellarlogo.png"
                     alt="XLM"
-                    width={14}
-                    height={14}
+                    width={24}
+                    height={24}
                   />
                   {loading ? (
-                    <span className="inline-block h-4 w-24 bg-[#241B4A] rounded animate-pulse" />
+                    <span className="inline-block h-6 w-28 bg-[#241B4A] rounded animate-pulse" />
                   ) : (
-                    <span className="tabular-nums">{formatXlm(xlm)} XLM</span>
+                    <span className="text-2xl sm:text-3xl font-bold tabular-nums">
+                      {formatXlm(xlm)}
+                    </span>
                   )}
+                  <span className="text-sm text-[#8C86B8] font-medium">XLM</span>
                 </div>
 
-                <span className="text-[#3A3358]">•</span>
-
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <span className="text-green-400 text-xs font-bold">$</span>
+                  </div>
                   {loading ? (
-                    <span className="inline-block h-4 w-20 bg-[#241B4A] rounded animate-pulse" />
+                    <span className="inline-block h-6 w-24 bg-[#241B4A] rounded animate-pulse" />
                   ) : usdc !== null ? (
-                    <span className="tabular-nums">{formatXlm(usdc)} USDC</span>
+                    <>
+                      <span className="text-2xl sm:text-3xl font-bold tabular-nums">
+                        {formatXlm(usdc)}
+                      </span>
+                      <span className="text-sm text-[#8C86B8] font-medium">USDC</span>
+                    </>
                   ) : (
-                    <span>No USDC trustline</span>
+                    <span className="text-sm text-[#8C86B8]">No USDC trustline</span>
                   )}
                 </div>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <button className="flex items-center justify-center gap-2 min-h-11 bg-[#9011FF] hover:bg-[#7d0dd4] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors">
+              <button
+                disabled
+                title="Coming soon — withdrawals are not yet available"
+                className="flex items-center justify-center gap-2 min-h-11 bg-[#9011FF]/50 text-white/60 font-semibold px-5 py-2.5 rounded-xl cursor-not-allowed"
+              >
                 <ArrowDownToLine className="w-4 h-4" />
                 Withdraw Funds
+                <span className="text-[10px] uppercase tracking-wider bg-[#1A1330] px-1.5 py-0.5 rounded">Coming soon</span>
               </button>
-              <button className="flex items-center justify-center min-h-11 border border-[#241B4A] hover:bg-[#1B1540] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors">
-                View Earnings
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4">
-              <p className="text-[#8C86B8]">
-                Your earnings from completed quests and approved responses.
-              </p>
               {!loading && funded && (
                 <button
                   onClick={fundWithFriendbot}
                   disabled={funding}
-                  className="inline-flex items-center gap-1.5 text-[#B48CFF] hover:text-purple-300 disabled:opacity-50 transition-colors w-fit"
+                  className="flex items-center justify-center gap-2 min-h-11 border border-[#241B4A] hover:bg-[#1B1540] text-white font-semibold px-5 py-2.5 rounded-xl transition-colors disabled:opacity-50"
                 >
-                  <Droplets
-                    className={`w-3.5 h-3.5 ${funding ? "animate-pulse" : ""}`}
-                  />
+                  <Droplets className={`w-4 h-4 ${funding ? "animate-pulse" : ""}`} />
                   {funding ? "Funding..." : "Fund with Friendbot"}
                 </button>
               )}
             </div>
-            <p className="text-[#6B6494]">
-              Minimum withdrawal: ${MIN_WITHDRAWAL_USD}
-            </p>
+          </div>
+
+          <div className="mt-4 text-xs text-[#6B6494]">
+            All displayed balances reflect real on-chain data from the Stellar network.
           </div>
         </div>
 
@@ -390,15 +370,17 @@ export default function WalletPage() {
                     </div>
                   </div>
                 </div>
-                <button className="flex items-center gap-1 text-sm text-[#B48CFF] hover:text-purple-300 transition-colors shrink-0">
+                <button
+                  disabled
+                  title="Coming soon"
+                  className="flex items-center gap-1 text-sm text-[#6B6494] cursor-not-allowed shrink-0"
+                >
                   <ArrowDownToLine className="w-4 h-4" />
                   <span className="hidden sm:inline">Withdraw</span>
+                  <span className="text-[10px] uppercase tracking-wider bg-[#1A1330] px-1 py-0.5 rounded">Soon</span>
                 </button>
               </div>
             </div>
-            <button className="block w-full text-center text-sm text-[#B48CFF] hover:text-purple-300 transition-colors mt-4">
-              Manage address
-            </button>
           </div>
         </div>
       </div>

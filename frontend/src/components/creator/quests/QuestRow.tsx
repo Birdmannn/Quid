@@ -49,59 +49,66 @@ export default function QuestRow({ quest }: { quest: QuestRowData }) {
 
   return (
     <div className="flex items-start gap-4 py-4 sm:items-center">
-      <Image
-        src="/namelogo.png"
-        alt=""
-        width={56}
-        height={56}
-        className="size-12 shrink-0 rounded-lg object-cover sm:size-14"
-      />
+      <Link
+        href={`/creator/quests/${quest.id}`}
+        className="flex min-w-0 flex-1 items-start gap-4 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8B5CF6] sm:items-center"
+      >
+        <Image
+          src="/namelogo.png"
+          alt=""
+          width={56}
+          height={56}
+          className="size-12 shrink-0 rounded-lg object-cover sm:size-14"
+        />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="truncate text-base font-semibold text-white">
-            {quest.title}
-          </h3>
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${TAG_STYLES[quest.tagVariant]}`}
-          >
-            <span className="size-1.5 rounded-full bg-current" />
-            {quest.tagLabel}
-          </span>
-        </div>
-        <p className="mt-0.5 text-sm text-white/40">
-          {quest.category} • {quest.tagLabel}
-        </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-base font-semibold text-white">
+              {quest.title}
+            </h3>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${TAG_STYLES[quest.tagVariant]}`}
+            >
+              <span className="size-1.5 rounded-full bg-current" />
+              {quest.tagLabel}
+            </span>
+          </div>
+          <p className="mt-0.5 text-sm text-white/40">
+            {quest.category} • {quest.tagLabel}
+          </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/50">
-          <span className="flex items-center gap-1.5">
-            <Image
-              src={stellarIcon}
-              alt=""
-              width={14}
-              height={14}
-              className="h-3.5 w-3.5"
-            />
-            <span className="font-medium text-white/80">{quest.pool} XLM</span>{" "}
-            Pool
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Image
-              src={stellarIcon}
-              alt=""
-              width={14}
-              height={14}
-              className="h-3.5 w-3.5"
-            />
-            <span className="font-medium text-white/80">
-              {quest.perWinner} XLM
-            </span>{" "}
-            Per winner
-          </span>
-          <span>{quest.responses} responses</span>
-          <span>{quest.meta}</span>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/50">
+            <span className="flex items-center gap-1.5">
+              <Image
+                src={stellarIcon}
+                alt=""
+                width={14}
+                height={14}
+                className="h-3.5 w-3.5"
+              />
+              <span className="font-medium text-white/80">
+                {quest.pool} XLM
+              </span>{" "}
+              Pool
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Image
+                src={stellarIcon}
+                alt=""
+                width={14}
+                height={14}
+                className="h-3.5 w-3.5"
+              />
+              <span className="font-medium text-white/80">
+                {quest.perWinner} XLM
+              </span>{" "}
+              Per winner
+            </span>
+            <span>{quest.responses} responses</span>
+            <span>{quest.meta}</span>
+          </div>
         </div>
-      </div>
+      </Link>
 
       <div className="flex shrink-0 items-center gap-2">
         <Link

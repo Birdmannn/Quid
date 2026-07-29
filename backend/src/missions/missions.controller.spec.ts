@@ -14,7 +14,8 @@ describe('MissionsController', () => {
     listPublicMissions: jest.Mock;
     getMissionSubmissions: jest.Mock;
     getMission: jest.Mock;
-
+    approveSubmission: jest.Mock;
+    rejectSubmission: jest.Mock;
     saveDraft: jest.Mock;
   };
 
@@ -23,10 +24,9 @@ describe('MissionsController', () => {
       listPublicMissions: jest.fn(),
 
       getMissionSubmissions: jest.fn(),
-
-      getMissionSubmissions: jest.fn(),
-
       getMission: jest.fn(),
+      approveSubmission: jest.fn(),
+      rejectSubmission: jest.fn(),
       saveDraft: jest.fn(),
     };
 
@@ -84,6 +84,42 @@ describe('MissionsController', () => {
         user: { userId: 'user-1', address: '0xabc' },
       } as any),
     ).rejects.toThrow(NotFoundException);
+  });
+
+  it('delegates approval with the authenticated owner address', async () => {
+    const approved = { id: 'sub-1', status: 'APPROVED' };
+    missionsService.approveSubmission.mockResolvedValue(approved);
+
+    await expect(
+      controller.approveSubmission('mission-1', 'sub-1', {
+        user: { userId: 'user-1', address: '0xabc' },
+      } as any),
+    ).resolves.toEqual(approved);
+    expect(missionsService.approveSubmission).toHaveBeenCalledWith(
+      'mission-1',
+      'sub-1',
+      '0xabc',
+    );
+  });
+
+  it('delegates rejection with an optional reason', async () => {
+    const rejected = { id: 'sub-1', status: 'REJECTED' };
+    missionsService.rejectSubmission.mockResolvedValue(rejected);
+
+    await expect(
+      controller.rejectSubmission(
+        'mission-1',
+        'sub-1',
+        { reason: 'Incomplete work' },
+        { user: { userId: 'user-1', address: '0xabc' } } as any,
+      ),
+    ).resolves.toEqual(rejected);
+    expect(missionsService.rejectSubmission).toHaveBeenCalledWith(
+      'mission-1',
+      'sub-1',
+      '0xabc',
+      'Incomplete work',
+    );
   });
 
   it('forwards the mission id to the service and returns the result', async () => {

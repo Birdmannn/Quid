@@ -13,6 +13,7 @@ import { Request } from 'express';
 import { MissionsService } from './missions.service';
 import { ListMissionsQueryDto } from './dto/list-missions-query.dto';
 import { SaveDraftDto } from './dto/save-draft.dto';
+import { RejectSubmissionDto } from './dto/reject-submission.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Prisma } from '@prisma/client';
 
@@ -50,6 +51,36 @@ export class MissionsController {
     @Req() req: AuthenticatedRequest,
   ): Promise<any> {
     return this.missionsService.getMissionSubmissions(id, req.user.address);
+  }
+
+  @Post(':missionId/submissions/:id/approve')
+  @UseGuards(JwtAuthGuard)
+  approveSubmission(
+    @Param('missionId') missionId: string,
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.missionsService.approveSubmission(
+      missionId,
+      id,
+      req.user.address,
+    );
+  }
+
+  @Post(':missionId/submissions/:id/reject')
+  @UseGuards(JwtAuthGuard)
+  rejectSubmission(
+    @Param('missionId') missionId: string,
+    @Param('id') id: string,
+    @Body() dto: RejectSubmissionDto,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<unknown> {
+    return this.missionsService.rejectSubmission(
+      missionId,
+      id,
+      req.user.address,
+      dto.reason,
+    );
   }
 
   @Post('drafts')

@@ -41,9 +41,10 @@ export async function getFreighterAddressIfConnected(): Promise<string | null> {
 export async function signFreighterTransaction(
   unsignedXdr: string,
   address: string,
+  networkPassphrase: Networks = NETWORK_PASSPHRASE,
 ): Promise<string> {
   const { signedTxXdr } = await signTransaction(unsignedXdr, {
-    networkPassphrase: NETWORK_PASSPHRASE,
+    networkPassphrase,
     address,
   });
 

@@ -1,62 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { AlertCircle, LoaderCircle } from "lucide-react";
 import QuestRow from "./QuestRow";
 import EmptyActiveQuests from "./EmptyActiveQuests";
 import type { QuestRowData, QuestTabKey } from "./types";
+import { useWallet } from "@/context/WalletProvider";
+import { creatorApiFetch } from "@/lib/creator-api";
 
-// Fixture data until GET /missions/me is wired up.
-const QUESTS: QuestRowData[] = [
-  {
-    id: "1",
-    title: "Download and test the latest Ruze.stellar 2.0",
-    tagLabel: "Reviewing submissions",
-    tagVariant: "active",
-    category: "Product testing",
-    pool: 610,
-    perWinner: 10,
-    responses: 72,
-    meta: "Expired 2d ago",
-    tab: "active",
-  },
-  {
-    id: "2",
-    title: "Untitled quest",
-    tagLabel: "Draft",
-    tagVariant: "draft",
-    category: "Product testing",
-    pool: 1250,
-    perWinner: 52,
-    responses: 0,
-    meta: "Last edited 8m ago",
-    tab: "drafted",
-  },
-  {
-    id: "3",
-    title: "Creator onboarding research",
-    tagLabel: "Draft",
-    tagVariant: "draft",
-    category: "Community participation",
-    pool: 0,
-    perWinner: 0,
-    responses: 0,
-    meta: "Last edited 2d ago",
-    tab: "drafted",
-  },
-  {
-    id: "4",
-    title: "Wallet transfer flow feedback",
-    tagLabel: "Completed",
-    tagVariant: "completed",
-    category: "Product testing",
-    pool: 1250,
-    perWinner: 52,
-    responses: 40,
-    meta: "Completed Jun 6",
-    tab: "completed",
-  },
-];
+type MissionStatus = "OPEN" | "STARTED" | "PAUSED" | "COMPLETED" | "CANCELLED";
+
+interface MissionResponse {
+  id: string;
+  title: string;
+  status: MissionStatus;
+  metadata: unknown;
+  rewardAmount: string;
+  maxParticipants: number;
+  updatedAt: string;
+  _count?: { submissions?: number };
+}
 
 const TABS: { key: QuestTabKey; label: string }[] = [
   { key: "active", label: "Active Quest" },
@@ -64,16 +28,125 @@ const TABS: { key: QuestTabKey; label: string }[] = [
   { key: "completed", label: "Completed" },
 ];
 
-export default function QuestsHub() {
-  const [activeTab, setActiveTab] = useState<QuestTabKey>("active");
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
-  const counts: Record<QuestTabKey, number> = {
-    active: QUESTS.filter((quest) => quest.tab === "active").length,
-    drafted: QUESTS.filter((quest) => quest.tab === "drafted").length,
-    completed: QUESTS.filter((quest) => quest.tab === "completed").length,
+function asNumber(value: unknown): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getRelativeTime(value: string): string {
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(value).getTime()) / 1000),
+  );
+
+  if (elapsedSeconds < 60) return "just now";
+  if (elapsedSeconds < 3600) return `${Math.floor(elapsedSeconds / 60)}m ago`;
+  if (elapsedSeconds < 86400) {
+    return `${Math.floor(elapsedSeconds / 3600)}h ago`;
+  }
+  return `${Math.floor(elapsedSeconds / 86400)}d ago`;
+}
+
+function missionTab(status: MissionStatus): QuestTabKey {
+  if (status === "PAUSED") return "drafted";
+  if (status === "COMPLETED" || status === "CANCELLED") return "completed";
+  return "active";
+}
+
+function mapMissionToQuest(mission: MissionResponse): QuestRowData {
+  const tab = missionTab(mission.status);
+  const metadata = asRecord(mission.metadata);
+  const perWinner = asNumber(mission.rewardAmount) ?? 0;
+  const configuredPool = asNumber(metadata.pool);
+
+  return {
+    id: mission.id,
+    title: mission.title,
+    tagLabel:
+      mission.status === "CANCELLED"
+        ? "Cancelled"
+        : tab === "drafted"
+          ? "Draft"
+          : tab === "completed"
+            ? "Completed"
+            : mission.status === "STARTED"
+              ? "Reviewing submissions"
+              : "Active",
+    tagVariant:
+      tab === "drafted" ? "draft" : tab === "completed" ? "completed" : "active",
+    category:
+      typeof metadata.category === "string" ? metadata.category : "General",
+    pool: configuredPool ?? perWinner * mission.maxParticipants,
+    perWinner,
+    responses: mission._count?.submissions ?? 0,
+    meta:
+      tab === "completed"
+        ? `${mission.status === "CANCELLED" ? "Cancelled" : "Completed"} ${new Date(
+            mission.updatedAt,
+          ).toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+          })}`
+        : `${tab === "drafted" ? "Last edited" : "Updated"} ${getRelativeTime(
+            mission.updatedAt,
+          )}`,
+    tab,
   };
+}
 
-  const visibleQuests = QUESTS.filter((quest) => quest.tab === activeTab);
+export default function QuestsHub() {
+  const { connected, publicKey, connect } = useWallet();
+  const [activeTab, setActiveTab] = useState<QuestTabKey>("active");
+  const [quests, setQuests] = useState<QuestRowData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadQuests = useCallback(async () => {
+    if (!publicKey) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await creatorApiFetch("/missions/me", publicKey);
+      if (!response.ok) {
+        throw new Error(`Unable to load quests (${response.status})`);
+      }
+
+      const missions = (await response.json()) as MissionResponse[];
+      setQuests(missions.map(mapMissionToQuest));
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Unable to load your quests",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [publicKey]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => void loadQuests(), 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [loadQuests]);
+
+  const counts = useMemo<Record<QuestTabKey, number>>(
+    () => ({
+      active: quests.filter((quest) => quest.tab === "active").length,
+      drafted: quests.filter((quest) => quest.tab === "drafted").length,
+      completed: quests.filter((quest) => quest.tab === "completed").length,
+    }),
+    [quests],
+  );
+
+  const visibleQuests = quests.filter((quest) => quest.tab === activeTab);
 
   return (
     <div>
@@ -130,7 +203,37 @@ export default function QuestsHub() {
       </div>
 
       <div className="pt-6">
-        {visibleQuests.length === 0 ? (
+        {!connected || !publicKey ? (
+          <div className="flex flex-col items-center py-12 text-center">
+            <p className="text-sm text-white/50">
+              Connect your wallet to load your quests.
+            </p>
+            <button
+              type="button"
+              onClick={() => void connect()}
+              className="mt-4 rounded-lg bg-[#8B5CF6] px-4 py-2 text-sm font-semibold text-white hover:bg-[#7c0de0]"
+            >
+              Connect wallet
+            </button>
+          </div>
+        ) : loading ? (
+          <div className="flex items-center justify-center gap-2 py-12 text-sm text-white/50">
+            <LoaderCircle className="size-4 animate-spin" />
+            Loading quests…
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center py-12 text-center">
+            <AlertCircle className="mb-3 size-6 text-red-400" />
+            <p className="text-sm text-red-300">{error}</p>
+            <button
+              type="button"
+              onClick={() => void loadQuests()}
+              className="mt-4 rounded-md border border-white/15 px-3 py-1.5 text-sm text-white hover:bg-white/5"
+            >
+              Try again
+            </button>
+          </div>
+        ) : visibleQuests.length === 0 ? (
           activeTab === "active" ? (
             <EmptyActiveQuests />
           ) : (

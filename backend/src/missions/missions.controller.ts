@@ -39,6 +39,14 @@ export class MissionsController {
     return this.missionsService.getMyMissions(req.user.address);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('drafts/me')
+  getLatestDraft(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<Prisma.MissionDraftGetPayload<null>> {
+    return this.missionsService.getLatestDraft(req.user.address);
+  }
+
   @Get(':id')
   detail(@Param('id') id: string): Promise<unknown> {
     return this.missionsService.getMission(id);

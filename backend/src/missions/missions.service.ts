@@ -53,8 +53,7 @@ export class MissionsService {
 
   async listPublicMissions(query: ListMissionsQueryDto): Promise<unknown> {
     const normalizedStatus = query.status?.toUpperCase() as
-      | MissionStatus
-      | undefined;
+      MissionStatus | undefined;
     const where = normalizedStatus ? { status: normalizedStatus } : {};
     const orderBy = {
       createdAt: query.sort === MissionListSort.OLDEST ? 'asc' : 'desc',
@@ -121,6 +120,21 @@ export class MissionsService {
       },
     });
     return created;
+  }
+
+  async getLatestDraft(
+    ownerAddress: string,
+  ): Promise<Prisma.MissionDraftGetPayload<null>> {
+    const draft = await this.prisma.missionDraft.findFirst({
+      where: { ownerAddress },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!draft) {
+      throw new NotFoundException('Mission draft not found');
+    }
+
+    return draft;
   }
 
   async getMissionSubmissions(

@@ -10,7 +10,7 @@ export default function EmptyActiveQuests() {
       </p>
       <Link
         href="/creator/quests/new"
-        className="mt-2 rounded-lg bg-[#9011FF] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#7c0de0]"
+        className="mt-2 rounded-lg bg-[#8B5CF6] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#7c0de0]"
       >
         + Add new Quest
       </Link>

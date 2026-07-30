@@ -16,15 +16,12 @@ export default function DashboardLayout({
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (connected && publicKey) {
-      setChecked(true);
-      return;
-    }
     const timer = setTimeout(() => {
-      if (!connected || !publicKey) {
-        router.push("/connect-wallet");
+      if (connected && publicKey) {
+        setChecked(true);
+      } else {
+        router.replace("/connect-wallet");
       }
-      setChecked(true);
     }, 500);
     return () => clearTimeout(timer);
   }, [connected, publicKey, router]);

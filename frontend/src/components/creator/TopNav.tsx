@@ -1,9 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronDown } from "lucide-react";
+import { useWallet } from "@/context/WalletProvider";
+import { Bell, LogOut } from "lucide-react";
+import { useState } from "react";
 
 const topNavItems = [
   {
@@ -20,8 +21,15 @@ const topNavItems = [
   },
 ];
 
+function truncateKey(key: string): string {
+  if (key.length <= 8) return key;
+  return `${key.slice(0, 4)}...${key.slice(-4)}`;
+}
+
 export default function TopNav() {
   const pathname = usePathname();
+  const { publicKey, disconnect } = useWallet();
+  const [showLogout, setShowLogout] = useState(false);
 
   const isActive = (href: string) =>
     pathname === href ||
@@ -46,37 +54,31 @@ export default function TopNav() {
 
         <div className="ml-auto flex items-center gap-4 text-sm font-semibold">
           <Bell className="hidden size-5 text-white/85 sm:block" />
-          <span className="flex items-center gap-1">
-            <Image
-              src="/dashboard/Star.svg"
-              alt=""
-              width={18}
-              height={18}
-              className="h-[18px] w-[18px]"
-            />
-            12
-          </span>
-          <span className="hidden items-center gap-1 sm:flex">
-            <Image
-              src="/dashboard/wallet.svg"
-              alt=""
-              width={18}
-              height={18}
-              className="h-[18px] w-[18px]"
-            />
-            $0
-          </span>
-          <span className="flex items-center gap-2">
-            <Image
-              src="/dashboard/avatar.png"
-              alt="Ruze.stellar"
-              width={34}
-              height={34}
-              className="size-[34px] rounded-full"
-            />
-            <span className="hidden sm:inline">Ruze.stellar</span>
-            <ChevronDown className="hidden size-4 sm:block" />
-          </span>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowLogout((prev) => !prev)}
+              className="flex items-center gap-2 rounded-lg border border-[#241B4A] bg-[#141026] px-3 py-1.5 text-xs font-mono text-[#CFC9FF] hover:border-[#9011FF] transition-colors"
+            >
+              <span className="h-2 w-2 rounded-full bg-green-400" />
+              {publicKey ? truncateKey(publicKey) : ""}
+            </button>
+            {showLogout && (
+              <div className="absolute right-0 mt-2 w-48 rounded-xl border border-[#241B4A] bg-[#141026] p-2 shadow-xl z-50">
+                <button
+                  type="button"
+                  onClick={() => {
+                    disconnect();
+                    setShowLogout(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <LogOut className="size-4" />
+                  Disconnect wallet
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

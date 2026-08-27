@@ -31,7 +31,7 @@ Quid is a feedback marketplace on **Stellar / Soroban**. Founders lock USDC/XLM 
 Quid/
 ├── frontend/          # Next.js app (Freighter, creator + hunter UI)
 ├── backend/           # NestJS API (auth, missions index, upload, indexer)
-├── quid-contract/     # Soroban contracts (store, reputation, milestone escrow)
+├── quid-contract/     # Soroban contracts (store, reputation, milestone escrow, dispute)
 └── CONTRIBUTING.md
 ```
 
@@ -46,7 +46,7 @@ Frontend (Next.js) ──────► Backend (NestJS + Postgres)
       │ create / submit / pay   │ index events, drafts, IPFS
       ▼                         ▼
 Soroban contracts ◄─────────────┘
-(quid-store, quid-reputation, quid-milestone-escrow)
+(quid-store, quid-reputation, quid-milestone-escrow, quid-dispute)
       │
       ▼
 IPFS (feedback blobs; CID stored on-chain)

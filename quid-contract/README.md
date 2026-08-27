@@ -1,6 +1,6 @@
 # Quid Contracts
 
-Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, and milestone programs.
+Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, milestone programs, and disputes.
 
 ## Contracts
 
@@ -9,6 +9,7 @@ Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, and mileston
 | `quid-store` | `quid_store.wasm` | Mission bounty vault: create, submit, payout, cancel, pause, slash |
 | `quid-reputation` | `quid_reputation.wasm` | Admin, profiles, attestations |
 | `quid-milestone-escrow` | `quid_milestone_escrow.wasm` | Multi-milestone escrow programs |
+| `quid-dispute` | `quid_dispute.wasm` | Contested-submission arbitration: timelock + optional arbiter |
 | `hello-world` | `hello_world.wasm` | Scaffold only — safe to ignore |
 
 ## Prerequisites
@@ -36,6 +37,7 @@ Wasm output:
 target/wasm32v1-none/release/quid_store.wasm
 target/wasm32v1-none/release/quid_reputation.wasm
 target/wasm32v1-none/release/quid_milestone_escrow.wasm
+target/wasm32v1-none/release/quid_dispute.wasm
 ```
 
 ## Deploy (testnet)
@@ -53,6 +55,11 @@ stellar contract deploy \
 
 stellar contract deploy \
   --wasm target/wasm32v1-none/release/quid_milestone_escrow.wasm \
+  --source alice \
+  --network testnet
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/quid_dispute.wasm \
   --source alice \
   --network testnet
 ```
@@ -105,6 +112,14 @@ See [contracts/quid-reputation/README.md](./contracts/quid-reputation/README.md)
 - `create_program` / `add_milestone` / `approve_milestone` / `cancel_program`
 - getters for program / milestone status
 
+### `quid-dispute`
+
+- `create_dispute` — hunter opens a case, stakes a bond, sets timelock + optional arbiter
+- `stake_bond` — hunter adds to their bond, or respondent posts a counter-bond
+- `resolve_by_arbiter` — named arbiter awards the pot before the deadline
+- `timeout_release` — after the deadline, refund each party's bond
+- Events: `DisputeCreatedEvent`, `BondStakedEvent`, `DisputeResolvedEvent`, `DisputeTimeoutEvent`
+
 ## Tests
 
 ```bash
@@ -113,6 +128,7 @@ cargo test
 cargo test -p quid-store
 cargo test -p quid-reputation
 cargo test -p quid-milestone-escrow
+cargo test -p quid-dispute
 ```
 
 ## Known gaps (good contributor targets)
@@ -121,6 +137,7 @@ cargo test -p quid-milestone-escrow
 - Mission expiry / auto-refund
 - Store → reputation hook on successful payout
 - Align milestone status helpers with production auth rules
+- Wire `quid-dispute` into store reject / payout holds
 - Remove or archive `hello-world`
 
 ## Workspace layout
@@ -132,6 +149,7 @@ quid-contract/
     ├── quid-store/
     ├── quid-reputation/
     ├── quid-milestone-escrow/
+    ├── quid-dispute/
     └── hello-world/
 ```
 

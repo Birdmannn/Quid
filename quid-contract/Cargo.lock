@@ -1011,6 +1011,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "quid-mission-factory"
+version = "0.0.0"
+dependencies = [
+ "quid-store",
+ "soroban-sdk",
+]
+
+[[package]]
 name = "quid-referral"
 version = "0.0.0"
 dependencies = [

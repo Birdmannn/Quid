@@ -13,6 +13,7 @@ Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, milestone pr
 | `quid-dispute` | `quid_dispute.wasm` | Contested-submission arbitration: timelock + optional arbiter |
 | `quid-badge-nft` | `quid_badge_nft.wasm` | Badge NFTs for completed missions / reputation tiers |
 | `quid-fee-collector` | `quid_fee_collector.wasm` | Protocol fee vault: configurable cut, per-token balances, admin withdrawal |
+| `quid-mission-factory` | `quid_mission_factory.wasm` | Curated mission templates that launch into configured store instances |
 | `hello-world` | `hello_world.wasm` | Scaffold only — safe to ignore |
 
 ## Prerequisites
@@ -44,6 +45,7 @@ target/wasm32v1-none/release/quid_referral.wasm
 target/wasm32v1-none/release/quid_dispute.wasm
 target/wasm32v1-none/release/quid_badge_nft.wasm
 target/wasm32v1-none/release/quid_fee_collector.wasm
+target/wasm32v1-none/release/quid_mission_factory.wasm
 ```
 
 ## Deploy (testnet)
@@ -81,6 +83,11 @@ stellar contract deploy \
 
 stellar contract deploy \
   --wasm target/wasm32v1-none/release/quid_fee_collector.wasm \
+  --source alice \
+  --network testnet
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/quid_mission_factory.wasm \
   --source alice \
   --network testnet
 ```
@@ -218,6 +225,14 @@ See [contracts/quid-badge-nft/README.md](./contracts/quid-badge-nft/README.md).
 
 See [contracts/quid-fee-collector/README.md](./contracts/quid-fee-collector/README.md).
 
+### `quid-mission-factory`
+
+- `initialize` / `get_admin`
+- `register_template` / `get_template` / `list_templates`
+- `create_from_template` — launch and fund a mission in the template's store
+
+See [contracts/quid-mission-factory/README.md](./contracts/quid-mission-factory/README.md).
+
 ## Tests
 
 ```bash
@@ -230,6 +245,7 @@ cargo test -p quid-referral
 cargo test -p quid-dispute
 cargo test -p quid-badge-nft
 cargo test -p quid-fee-collector
+cargo test -p quid-mission-factory
 ```
 
 ## Known gaps (good contributor targets)
@@ -256,6 +272,7 @@ quid-contract/
     ├── quid-dispute/
     ├── quid-badge-nft/
     ├── quid-fee-collector/
+    ├── quid-mission-factory/
     └── hello-world/
 ```
 

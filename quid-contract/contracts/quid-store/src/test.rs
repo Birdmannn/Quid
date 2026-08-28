@@ -1741,3 +1741,177 @@ fn test_asset_gating_multiple_hunters_different_balances() {
     client.payout_participant(&mission_id, &hunter1);
     client.payout_participant(&mission_id, &hunter2);
 }
+
+// -----------------------------------------------------------------------------
+// Protocol fee collection (quid-fee-collector integration)
+// -----------------------------------------------------------------------------
+
+use quid_fee_collector::{QuidFeeCollectorContract, QuidFeeCollectorContractClient};
+
+/// Register a fee vault at `fee_bps` and point the store at it.
+fn setup_fee_collector<'a>(
+    env: &Env,
+    store_id: &Address,
+    fee_bps: u32,
+) -> (QuidFeeCollectorContractClient<'a>, Address) {
+    let collector_id = env.register(QuidFeeCollectorContract, ());
+    let collector = QuidFeeCollectorContractClient::new(env, &collector_id);
+
+    let fee_admin = Address::generate(env);
+    collector.initialize(&fee_admin, &fee_bps);
+
+    QuidStoreContractClient::new(env, store_id).set_fee_collector(&collector_id);
+
+    (collector, fee_admin)
+}
+
+fn open_mission(
+    env: &Env,
+    client: &QuidStoreContractClient,
+    owner: &Address,
+    token_address: &Address,
+    reward_amount: i128,
+    max_participants: u32,
+) -> u64 {
+    let reward = Reward {
+        reward_token: token_address.clone(),
+        reward_amount,
+    };
+    let min_asset = MinAsset {
+        min_asset_token: None,
+        min_asset_amount: 0,
+    };
+
+    client.create_mission(
+        owner,
+        &String::from_str(env, "Fee Mission"),
+        &String::from_str(env, "QmDesc"),
+        &reward,
+        &max_participants,
+        &min_asset,
+    )
+}
+
+#[test]
+fn test_create_mission_charges_protocol_fee_on_top_of_escrow() {
+    let (env, contract_id, owner, token_address) = setup_test_env();
+    let client = QuidStoreContractClient::new(&env, &contract_id);
+    let token_client = TokenClient::new(&env, &token_address);
+
+    // 2.5% of the 1_000 escrowed across 10 slots at 100 each.
+    let (collector, _) = setup_fee_collector(&env, &contract_id, 250);
+
+    let owner_before = token_client.balance(&owner);
+    let mission_id = open_mission(&env, &client, &owner, &token_address, 100, 10);
+
+    // Owner pays escrow + fee; the escrow itself is untouched.
+    assert_eq!(token_client.balance(&owner), owner_before - 1_000 - 25);
+    assert_eq!(token_client.balance(&contract_id), 1_000);
+    assert_eq!(collector.get_balance(&token_address), 25);
+    assert_eq!(token_client.balance(&collector.address), 25);
+
+    // The full reward pool is still payable to hunters.
+    assert_eq!(client.get_mission(&mission_id).reward_amount, 100);
+}
+
+#[test]
+fn test_create_mission_is_fee_free_when_no_collector_is_configured() {
+    let (env, contract_id, owner, token_address) = setup_test_env();
+    let client = QuidStoreContractClient::new(&env, &contract_id);
+    let token_client = TokenClient::new(&env, &token_address);
+
+    let owner_before = token_client.balance(&owner);
+    open_mission(&env, &client, &owner, &token_address, 100, 10);
+
+    assert_eq!(token_client.balance(&owner), owner_before - 1_000);
+    assert_eq!(token_client.balance(&contract_id), 1_000);
+}
+
+#[test]
+fn test_zero_rate_collector_charges_nothing() {
+    let (env, contract_id, owner, token_address) = setup_test_env();
+    let client = QuidStoreContractClient::new(&env, &contract_id);
+    let token_client = TokenClient::new(&env, &token_address);
+
+    let (collector, _) = setup_fee_collector(&env, &contract_id, 0);
+
+    let owner_before = token_client.balance(&owner);
+    open_mission(&env, &client, &owner, &token_address, 100, 10);
+
+    assert_eq!(token_client.balance(&owner), owner_before - 1_000);
+    assert_eq!(collector.get_balance(&token_address), 0);
+}
+
+#[test]
+fn test_fees_accumulate_across_missions_and_are_withdrawable_by_admin() {
+    let (env, contract_id, owner, token_address) = setup_test_env();
+    let client = QuidStoreContractClient::new(&env, &contract_id);
+    let token_client = TokenClient::new(&env, &token_address);
+
+    let (collector, fee_admin) = setup_fee_collector(&env, &contract_id, 250);
+
+    open_mission(&env, &client, &owner, &token_address, 100, 10); // fee 25
+    open_mission(&env, &client, &owner, &token_address, 200, 10); // fee 50
+
+    assert_eq!(collector.get_balance(&token_address), 75);
+
+    let treasury = Address::generate(&env);
+    collector.withdraw_fees(&fee_admin, &token_address, &treasury, &75);
+
+    assert_eq!(token_client.balance(&treasury), 75);
+    assert_eq!(collector.get_balance(&token_address), 0);
+}
+
+#[test]
+fn test_fee_does_not_reduce_hunter_payout() {
+    let (env, contract_id, owner, token_address) = setup_test_env();
+    let client = QuidStoreContractClient::new(&env, &contract_id);
+    let token_client = TokenClient::new(&env, &token_address);
+
+    setup_fee_collector(&env, &contract_id, 250);
+
+    let hunter = Address::generate(&env);
+    mint_tokens_for_hunter(&env, &token_address, &hunter, 1_000);
+
+    let mission_id = open_mission(&env, &client, &owner, &token_address, 100, 5);
+    client.submit_feedback(
+        &mission_id,
+        &hunter,
+        &String::from_str(&env, "QmSubmission"),
+        &token_address,
+        &10,
+    );
+
+    let before = token_client.balance(&hunter);
+    client.payout_participant(&mission_id, &hunter);
+
+    // Full reward plus the stake refund, with no fee skimmed off the top.
+    assert_eq!(token_client.balance(&hunter), before + 100 + 10);
+}
+
+#[test]
+fn test_fee_collector_slot_is_transferable_and_the_new_vault_takes_over() {
+    let (env, contract_id, owner, token_address) = setup_test_env();
+    let client = QuidStoreContractClient::new(&env, &contract_id);
+
+    let (first, _) = setup_fee_collector(&env, &contract_id, 250);
+    let (second, _) = setup_fee_collector(&env, &contract_id, 100);
+
+    assert_eq!(client.get_fee_collector(), second.address);
+
+    open_mission(&env, &client, &owner, &token_address, 100, 10);
+
+    assert_eq!(first.get_balance(&token_address), 0);
+    assert_eq!(second.get_balance(&token_address), 10);
+}
+
+#[test]
+fn test_get_fee_collector_before_configuration() {
+    let (env, contract_id, _, _) = setup_test_env();
+    let client = QuidStoreContractClient::new(&env, &contract_id);
+
+    assert_eq!(
+        client.try_get_fee_collector(),
+        Err(Ok(QuidError::FeeCollectorNotSet))
+    );
+}

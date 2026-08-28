@@ -983,6 +983,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "quid-fee-collector"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "quid-milestone-escrow"
 version = "0.0.0"
 dependencies = [
@@ -1000,6 +1007,7 @@ dependencies = [
 name = "quid-store"
 version = "0.0.0"
 dependencies = [
+ "quid-fee-collector",
  "soroban-sdk",
 ]
 

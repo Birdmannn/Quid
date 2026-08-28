@@ -983,6 +983,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "quid-dispute"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "quid-milestone-escrow"
 version = "0.0.0"
 dependencies = [

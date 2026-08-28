@@ -19,4 +19,5 @@ pub enum QuidError {
     TreasuryNotSet = 14,
     StakeNotFound = 15,
     InsufficientAssetBalance = 16,
+    FeeCollectorNotSet = 17,
 }

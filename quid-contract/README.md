@@ -1,6 +1,6 @@
 # Quid Contracts
 
-Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, milestone programs, referrals, disputes, and badges.
+Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, milestone programs, referrals, disputes, badges, and protocol fees.
 
 ## Contracts
 
@@ -12,6 +12,7 @@ Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, milestone pr
 | `quid-referral` | `quid_referral.wasm` | Referral attribution + rewards on settled payouts |
 | `quid-dispute` | `quid_dispute.wasm` | Contested-submission arbitration: timelock + optional arbiter |
 | `quid-badge-nft` | `quid_badge_nft.wasm` | Badge NFTs for completed missions / reputation tiers |
+| `quid-fee-collector` | `quid_fee_collector.wasm` | Protocol fee vault: configurable cut, per-token balances, admin withdrawal |
 | `hello-world` | `hello_world.wasm` | Scaffold only — safe to ignore |
 
 ## Prerequisites
@@ -42,6 +43,7 @@ target/wasm32v1-none/release/quid_milestone_escrow.wasm
 target/wasm32v1-none/release/quid_referral.wasm
 target/wasm32v1-none/release/quid_dispute.wasm
 target/wasm32v1-none/release/quid_badge_nft.wasm
+target/wasm32v1-none/release/quid_fee_collector.wasm
 ```
 
 ## Deploy (testnet)
@@ -74,6 +76,11 @@ stellar contract deploy \
 
 stellar contract deploy \
   --wasm target/wasm32v1-none/release/quid_badge_nft.wasm \
+  --source alice \
+  --network testnet
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/quid_fee_collector.wasm \
   --source alice \
   --network testnet
 ```
@@ -127,6 +134,31 @@ stellar contract invoke \
   --payout_hook <STORE_CONTRACT_ID>
 ```
 
+### Initialize the fee collector (optional, once)
+
+The protocol fee is opt-in: until the store is pointed at a vault,
+`create_mission` charges nothing.
+
+```bash
+# 250 bps = 2.5%
+stellar contract invoke \
+  --id <FEE_COLLECTOR_CONTRACT_ID> \
+  --source alice \
+  --network testnet \
+  -- \
+  initialize \
+  --admin alice \
+  --fee_bps 250
+
+stellar contract invoke \
+  --id <STORE_CONTRACT_ID> \
+  --source alice \
+  --network testnet \
+  -- \
+  set_fee_collector \
+  --new_collector <FEE_COLLECTOR_CONTRACT_ID>
+```
+
 ## Main entrypoints
 
 ### `quid-store`
@@ -136,6 +168,7 @@ stellar contract invoke \
 - `payout_participant` — pay hunter, refund stake
 - `cancel_mission` / `pause_mission` / `update_mission_status`
 - `slash_hunter_stake` / treasury helpers
+- `set_fee_collector` / `get_fee_collector` — route the protocol fee to `quid-fee-collector`
 
 ### `quid-reputation`
 
@@ -176,6 +209,15 @@ See [contracts/quid-referral/README.md](./contracts/quid-referral/README.md).
 
 See [contracts/quid-badge-nft/README.md](./contracts/quid-badge-nft/README.md).
 
+### `quid-fee-collector`
+
+- `initialize` / `get_admin` / `set_admin`
+- `set_fee_bps` / `get_fee_bps` / `compute_fee`
+- `collect_fee` / `deposit_fee`
+- `withdraw_fees` / `get_balance` / `get_balances`
+
+See [contracts/quid-fee-collector/README.md](./contracts/quid-fee-collector/README.md).
+
 ## Tests
 
 ```bash
@@ -187,6 +229,7 @@ cargo test -p quid-milestone-escrow
 cargo test -p quid-referral
 cargo test -p quid-dispute
 cargo test -p quid-badge-nft
+cargo test -p quid-fee-collector
 ```
 
 ## Known gaps (good contributor targets)
@@ -212,6 +255,7 @@ quid-contract/
     ├── quid-referral/
     ├── quid-dispute/
     ├── quid-badge-nft/
+    ├── quid-fee-collector/
     └── hello-world/
 ```
 

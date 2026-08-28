@@ -9,6 +9,7 @@ Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, and mileston
 | `quid-store` | `quid_store.wasm` | Mission bounty vault: create, submit, payout, cancel, pause, slash |
 | `quid-reputation` | `quid_reputation.wasm` | Admin, profiles, attestations |
 | `quid-milestone-escrow` | `quid_milestone_escrow.wasm` | Multi-milestone escrow programs |
+| `quid-referral` | `quid_referral.wasm` | Referral attribution + rewards on settled payouts |
 | `hello-world` | `hello_world.wasm` | Scaffold only — safe to ignore |
 
 ## Prerequisites
@@ -36,6 +37,7 @@ Wasm output:
 target/wasm32v1-none/release/quid_store.wasm
 target/wasm32v1-none/release/quid_reputation.wasm
 target/wasm32v1-none/release/quid_milestone_escrow.wasm
+target/wasm32v1-none/release/quid_referral.wasm
 ```
 
 ## Deploy (testnet)
@@ -53,6 +55,11 @@ stellar contract deploy \
 
 stellar contract deploy \
   --wasm target/wasm32v1-none/release/quid_milestone_escrow.wasm \
+  --source alice \
+  --network testnet
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/quid_referral.wasm \
   --source alice \
   --network testnet
 ```
@@ -82,6 +89,30 @@ stellar contract invoke \
   get_admin
 ```
 
+### Initialize referrals (once)
+
+```bash
+# 500 bps = 5% of each referred hunter's payout
+stellar contract invoke \
+  --id <REFERRAL_CONTRACT_ID> \
+  --source alice \
+  --network testnet \
+  -- \
+  initialize \
+  --admin alice \
+  --reward_bps 500
+
+# only this address may report payouts
+stellar contract invoke \
+  --id <REFERRAL_CONTRACT_ID> \
+  --source alice \
+  --network testnet \
+  -- \
+  set_payout_hook \
+  --caller alice \
+  --payout_hook <STORE_CONTRACT_ID>
+```
+
 ## Main entrypoints
 
 ### `quid-store`
@@ -100,6 +131,15 @@ stellar contract invoke \
 
 See [contracts/quid-reputation/README.md](./contracts/quid-reputation/README.md).
 
+### `quid-referral`
+
+- `initialize` / `set_reward_bps` / `compute_reward`
+- `register_referral` / `get_referral` / `get_referred_count`
+- `set_payout_hook` / `record_payout` — accrual gated behind a settled payout
+- `fund` / `claim_reward` / `get_claimable` / `get_claimed`
+
+See [contracts/quid-referral/README.md](./contracts/quid-referral/README.md).
+
 ### `quid-milestone-escrow`
 
 - `create_program` / `add_milestone` / `approve_milestone` / `cancel_program`
@@ -113,13 +153,14 @@ cargo test
 cargo test -p quid-store
 cargo test -p quid-reputation
 cargo test -p quid-milestone-escrow
+cargo test -p quid-referral
 ```
 
 ## Known gaps (good contributor targets)
 
 - `reject_submission` + stake refund on `quid-store`
 - Mission expiry / auto-refund
-- Store → reputation hook on successful payout
+- Store → reputation hook on successful payout (also wires `quid-referral.record_payout`)
 - Align milestone status helpers with production auth rules
 - Remove or archive `hello-world`
 
@@ -132,6 +173,7 @@ quid-contract/
     ├── quid-store/
     ├── quid-reputation/
     ├── quid-milestone-escrow/
+    ├── quid-referral/
     └── hello-world/
 ```
 

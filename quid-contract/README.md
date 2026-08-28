@@ -1,6 +1,6 @@
 # Quid Contracts
 
-Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, and milestone programs.
+Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, milestone programs, referrals, disputes, badges, and protocol fees.
 
 ## Contracts
 
@@ -9,6 +9,9 @@ Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, and mileston
 | `quid-store` | `quid_store.wasm` | Mission bounty vault: create, submit, payout, cancel, pause, slash |
 | `quid-reputation` | `quid_reputation.wasm` | Admin, profiles, attestations |
 | `quid-milestone-escrow` | `quid_milestone_escrow.wasm` | Multi-milestone escrow programs |
+| `quid-referral` | `quid_referral.wasm` | Referral attribution + rewards on settled payouts |
+| `quid-dispute` | `quid_dispute.wasm` | Contested-submission arbitration: timelock + optional arbiter |
+| `quid-badge-nft` | `quid_badge_nft.wasm` | Badge NFTs for completed missions / reputation tiers |
 | `quid-fee-collector` | `quid_fee_collector.wasm` | Protocol fee vault: configurable cut, per-token balances, admin withdrawal |
 | `hello-world` | `hello_world.wasm` | Scaffold only — safe to ignore |
 
@@ -37,6 +40,9 @@ Wasm output:
 target/wasm32v1-none/release/quid_store.wasm
 target/wasm32v1-none/release/quid_reputation.wasm
 target/wasm32v1-none/release/quid_milestone_escrow.wasm
+target/wasm32v1-none/release/quid_referral.wasm
+target/wasm32v1-none/release/quid_dispute.wasm
+target/wasm32v1-none/release/quid_badge_nft.wasm
 target/wasm32v1-none/release/quid_fee_collector.wasm
 ```
 
@@ -55,6 +61,21 @@ stellar contract deploy \
 
 stellar contract deploy \
   --wasm target/wasm32v1-none/release/quid_milestone_escrow.wasm \
+  --source alice \
+  --network testnet
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/quid_referral.wasm \
+  --source alice \
+  --network testnet
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/quid_dispute.wasm \
+  --source alice \
+  --network testnet
+
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/quid_badge_nft.wasm \
   --source alice \
   --network testnet
 
@@ -87,6 +108,30 @@ stellar contract invoke \
   --network testnet \
   -- \
   get_admin
+```
+
+### Initialize referrals (once)
+
+```bash
+# 500 bps = 5% of each referred hunter's payout
+stellar contract invoke \
+  --id <REFERRAL_CONTRACT_ID> \
+  --source alice \
+  --network testnet \
+  -- \
+  initialize \
+  --admin alice \
+  --reward_bps 500
+
+# only this address may report payouts
+stellar contract invoke \
+  --id <REFERRAL_CONTRACT_ID> \
+  --source alice \
+  --network testnet \
+  -- \
+  set_payout_hook \
+  --caller alice \
+  --payout_hook <STORE_CONTRACT_ID>
 ```
 
 ### Initialize the fee collector (optional, once)
@@ -133,165 +178,14 @@ stellar contract invoke \
 
 See [contracts/quid-reputation/README.md](./contracts/quid-reputation/README.md).
 
-### `quid-fee-collector`
+### `quid-referral`
 
-- `initialize` / `get_admin` / `set_admin`
-- `set_fee_bps` / `get_fee_bps` / `compute_fee`
-- `collect_fee` / `deposit_fee`
-- `withdraw_fees` / `get_balance` / `get_balances`
+- `initialize` / `set_reward_bps` / `compute_reward`
+- `register_referral` / `get_referral` / `get_referred_count`
+- `set_payout_hook` / `record_payout` — accrual gated behind a settled payout
+- `fund` / `claim_reward` / `get_claimable` / `get_claimed`
 
-See [contracts/quid-fee-collector/README.md](./contracts/quid-fee-collector/README.md).
-
-### `quid-milestone-escrow`
-
-- `create_program` / `add_milestone` / `approve_milestone` / `cancel_program`
-- getters for program / milestone status
-
-## Tests
-
-```bash
-cargo test
-# or per package:
-cargo test -p quid-store
-cargo test -p quid-reputation
-cargo test -p quid-milestone-escrow
-cargo test -p quid-fee-collector
-```
-
-## Known gaps (good contributor targets)
-
-- `reject_submission` + stake refund on `quid-store`
-- Mission expiry / auto-refund
-- Store → reputation hook on successful payout
-- Align milestone status helpers with production auth rules
-- Remove or archive `hello-world`
-
-## Workspace layout
-
-```text
-quid-contract/
-├── Cargo.toml                 # workspace (soroban-sdk 23)
-└── contracts/
-    ├── quid-store/
-    ├── quid-reputation/
-    ├── quid-milestone-escrow/
-    ├── quid-fee-collector/
-    └── hello-world/
-```
-
-## Related docs
-
-- Root: [../README.md](../README.md)
-- Frontend env: [../frontend/README.md](../frontend/README.md)
-- Contributing: [../CONTRIBUTING.md](../CONTRIBUTING.md)
-# Quid Contracts
-
-Soroban (Rust) smart contracts for Quid: bounty escrow, reputation, milestone programs, and disputes.
-
-## Contracts
-
-| Package | Wasm | Role |
-|---------|------|------|
-| `quid-store` | `quid_store.wasm` | Mission bounty vault: create, submit, payout, cancel, pause, slash |
-| `quid-reputation` | `quid_reputation.wasm` | Admin, profiles, attestations |
-| `quid-milestone-escrow` | `quid_milestone_escrow.wasm` | Multi-milestone escrow programs |
-| `quid-dispute` | `quid_dispute.wasm` | Contested-submission arbitration: timelock + optional arbiter |
-| `hello-world` | `hello_world.wasm` | Scaffold only — safe to ignore |
-
-## Prerequisites
-
-- Rust (stable)
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools) (`stellar`) — use a version compatible with Soroban SDK 23
-- Testnet account (Friendbot)
-
-```bash
-stellar --version
-stellar keys generate alice --network testnet --as-secret
-stellar keys fund alice --network testnet
-```
-
-## Build
-
-```bash
-cd quid-contract
-stellar contract build
-```
-
-Wasm output:
-
-```text
-target/wasm32v1-none/release/quid_store.wasm
-target/wasm32v1-none/release/quid_reputation.wasm
-target/wasm32v1-none/release/quid_milestone_escrow.wasm
-target/wasm32v1-none/release/quid_dispute.wasm
-```
-
-## Deploy (testnet)
-
-```bash
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/quid_store.wasm \
-  --source alice \
-  --network testnet
-
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/quid_reputation.wasm \
-  --source alice \
-  --network testnet
-
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/quid_milestone_escrow.wasm \
-  --source alice \
-  --network testnet
-
-stellar contract deploy \
-  --wasm target/wasm32v1-none/release/quid_dispute.wasm \
-  --source alice \
-  --network testnet
-```
-
-Copy each `C...` contract ID into `frontend/.env.local`.
-
-### Initialize reputation (once)
-
-```bash
-stellar contract invoke \
-  --id <REPUTATION_CONTRACT_ID> \
-  --source alice \
-  --network testnet \
-  -- \
-  initialize \
-  --admin alice
-```
-
-Verify:
-
-```bash
-stellar contract invoke \
-  --id <REPUTATION_CONTRACT_ID> \
-  --source alice \
-  --network testnet \
-  -- \
-  get_admin
-```
-
-## Main entrypoints
-
-### `quid-store`
-
-- `create_mission` — escrow rewards, optional asset gate
-- `submit_feedback` — hunter stake + IPFS CID
-- `payout_participant` — pay hunter, refund stake
-- `cancel_mission` / `pause_mission` / `update_mission_status`
-- `slash_hunter_stake` / treasury helpers
-
-### `quid-reputation`
-
-- `initialize` / `get_admin`
-- `issue_attestation` / `get_attestation` / `revoke_attestation`
-- `set_profile` / `get_profile`
-
-See [contracts/quid-reputation/README.md](./contracts/quid-reputation/README.md).
+See [contracts/quid-referral/README.md](./contracts/quid-referral/README.md).
 
 ### `quid-milestone-escrow`
 
@@ -306,6 +200,24 @@ See [contracts/quid-reputation/README.md](./contracts/quid-reputation/README.md)
 - `timeout_release` — after the deadline, refund each party's bond
 - Events: `DisputeCreatedEvent`, `BondStakedEvent`, `DisputeResolvedEvent`, `DisputeTimeoutEvent`
 
+### `quid-badge-nft`
+
+- `initialize` / `get_admin` / `set_admin`
+- `add_minter` / `remove_minter` / `is_minter`
+- `mint_badge` / `get_badge` / `list_by_owner`
+- `transfer` (transferable badges only) / `burn`
+
+See [contracts/quid-badge-nft/README.md](./contracts/quid-badge-nft/README.md).
+
+### `quid-fee-collector`
+
+- `initialize` / `get_admin` / `set_admin`
+- `set_fee_bps` / `get_fee_bps` / `compute_fee`
+- `collect_fee` / `deposit_fee`
+- `withdraw_fees` / `get_balance` / `get_balances`
+
+See [contracts/quid-fee-collector/README.md](./contracts/quid-fee-collector/README.md).
+
 ## Tests
 
 ```bash
@@ -314,14 +226,19 @@ cargo test
 cargo test -p quid-store
 cargo test -p quid-reputation
 cargo test -p quid-milestone-escrow
+cargo test -p quid-referral
 cargo test -p quid-dispute
+cargo test -p quid-badge-nft
+cargo test -p quid-fee-collector
 ```
 
 ## Known gaps (good contributor targets)
 
 - `reject_submission` + stake refund on `quid-store`
 - Mission expiry / auto-refund
-- Store → reputation hook on successful payout
+- Store → reputation hook on successful payout (also wires `quid-referral.record_payout`)
+- Store/reputation → `quid-badge-nft` `mint_badge` call on successful payout
+  (the badge contract already exposes the minter allow-list for it)
 - Align milestone status helpers with production auth rules
 - Wire `quid-dispute` into store reject / payout holds
 - Remove or archive `hello-world`
@@ -335,7 +252,10 @@ quid-contract/
     ├── quid-store/
     ├── quid-reputation/
     ├── quid-milestone-escrow/
+    ├── quid-referral/
     ├── quid-dispute/
+    ├── quid-badge-nft/
+    ├── quid-fee-collector/
     └── hello-world/
 ```
 

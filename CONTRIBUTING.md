@@ -12,7 +12,7 @@ Founders launch dApps into quiet Discords. Real users rarely spend 20 minutes te
 |------|---------------------|
 | `frontend/` | Next.js UI, Freighter, creator/hunter flows |
 | `backend/` | NestJS auth, mission index, IPFS upload, indexer |
-| `quid-contract/` | Soroban contracts (`quid-store`, reputation, milestone escrow) |
+| `quid-contract/` | Soroban contracts (`quid-store`, reputation, milestone escrow, dispute) |
 
 Read the README in each package before starting.
 

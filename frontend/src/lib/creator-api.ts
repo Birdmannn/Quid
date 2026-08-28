@@ -26,6 +26,26 @@ function getApiUrl(path: string): string {
   return `${API_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
 
+/**
+ * Issue #331: whether an API base URL is configured at all. A local frontend
+ * running without a backend still has to get through onboarding, so callers
+ * use this to fall back to the localStorage-only behaviour instead of throwing.
+ */
+export function isApiConfigured(): boolean {
+  return Boolean(API_URL);
+}
+
+/**
+ * Issue #331: whether a SEP-10 session already exists for this address.
+ *
+ * Guards use it to decide whether the server role is reachable *without*
+ * popping a wallet signature prompt on every dashboard mount.
+ */
+export function hasApiSession(address: string): boolean {
+  if (typeof window === 'undefined') return false;
+  return readSession(address) !== null;
+}
+
 function readSession(address: string): CreatorSession | null {
   try {
     const stored = localStorage.getItem(SESSION_KEY);

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/creator/Sidebar";
 import TopNav from "@/components/creator/TopNav";
+import RequireRole from "@/components/auth/RequireRole";
 
 export default function DashboardLayout({
   children,
@@ -42,14 +43,18 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-x-hidden bg-[#0D0B10] text-white">
-      <Sidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopNav />
-        <main className="min-w-0 flex-1 overflow-y-auto bg-[#0D0B10]">
-          {children}
-        </main>
+    // Issue #331: the wallet check above proves the session; this makes the
+    // creator dashboard respect the role the server holds for that wallet.
+    <RequireRole role="creator">
+      <div className="flex h-screen overflow-x-hidden bg-[#0D0B10] text-white">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopNav />
+          <main className="min-w-0 flex-1 overflow-y-auto bg-[#0D0B10]">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </RequireRole>
   );
 }

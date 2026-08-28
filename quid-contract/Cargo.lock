@@ -997,6 +997,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "quid-referral"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "quid-reputation"
 version = "0.1.0"
 dependencies = [

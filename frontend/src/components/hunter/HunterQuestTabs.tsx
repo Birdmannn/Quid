@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { BriefcaseBusiness, ChevronLeft, ChevronRight } from "lucide-react";
+import { BriefcaseBusiness, ChevronLeft, ChevronRight, Send } from "lucide-react";
+import SubmitFeedbackModal from "@/components/hunter/SubmitFeedbackModal";
 
 type QuestStatus = "Submitted" | "Reviewing" | "Open";
 type QuestTab = "for-you" | "all-quest" | "my-quest";
@@ -130,7 +131,7 @@ const myQuests: Quest[] = [
   },
 ];
 
-const questsByTab: Record<QuestTab, Quest[]> = {
+const initialQuestsByTab: Record<QuestTab, Quest[]> = {
   "for-you": forYouQuests,
   "all-quest": allQuests,
   "my-quest": myQuests,
@@ -141,10 +142,12 @@ const QUESTS_PER_PAGE = 5;
 export default function HunterQuestTabs() {
   const [activeTab, setActiveTab] = useState<QuestTab>("for-you");
   const [allQuestPage, setAllQuestPage] = useState(1);
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
+  const [questsState, setQuestsState] = useState<Record<QuestTab, Quest[]>>(initialQuestsByTab);
 
-  const quests = questsByTab[activeTab];
+  const quests = questsState[activeTab];
   const showPagination = activeTab === "all-quest";
-  const totalPages = Math.ceil(allQuests.length / QUESTS_PER_PAGE);
+  const totalPages = Math.ceil(questsState["all-quest"].length / QUESTS_PER_PAGE);
   const visibleQuests = showPagination
     ? quests.slice(
         (allQuestPage - 1) * QUESTS_PER_PAGE,
@@ -157,15 +160,32 @@ export default function HunterQuestTabs() {
     [activeTab],
   );
 
+  const handleSubmissionSuccess = () => {
+    if (!selectedQuest) return;
+
+    const submittedQuest: Quest = {
+      ...selectedQuest,
+      id: `submitted-${selectedQuest.id}`,
+      status: "Submitted",
+      due: "Pending Review",
+    };
+
+    setQuestsState((prev) => ({
+      ...prev,
+      "my-quest": [submittedQuest, ...prev["my-quest"]],
+    }));
+  };
+
   return (
     <section aria-label={`${tabLabel} quests`}>
       <div
-        className="mt-6  flex gap-8 border-b border-white/10 text-lg font-semibold text-white/40"
+        className="mt-6 flex gap-8 border-b border-white/10 text-lg font-semibold text-white/40"
         role="tablist"
         aria-label="Quest filters"
       >
         {tabs.map((tab) => {
           const isActive = tab.id === activeTab;
+          const count = tab.id === "my-quest" ? questsState["my-quest"].length : tab.count;
 
           return (
             <button
@@ -183,9 +203,9 @@ export default function HunterQuestTabs() {
               }}
             >
               {tab.label}
-              {tab.count ? (
+              {count ? (
                 <span className="ml-2 rounded-full bg-white px-2 py-0.5 text-xs text-[#1B1324]">
-                  {tab.count}
+                  {count}
                 </span>
               ) : null}
               {isActive ? (
@@ -199,7 +219,11 @@ export default function HunterQuestTabs() {
       <div className={showPagination ? "flex min-h-[720px] flex-col" : undefined}>
         <div id={`${activeTab}-panel`} role="tabpanel" className="mt-7 space-y-9 ">
           {visibleQuests.map((quest) => (
-            <QuestRow key={quest.id} quest={quest} />
+            <QuestRow
+              key={quest.id}
+              quest={quest}
+              onSubmitFeedback={() => setSelectedQuest(quest)}
+            />
           ))}
         </div>
 
@@ -211,13 +235,30 @@ export default function HunterQuestTabs() {
           />
         ) : null}
       </div>
+
+      {selectedQuest && (
+        <SubmitFeedbackModal
+          isOpen={Boolean(selectedQuest)}
+          quest={selectedQuest}
+          onClose={() => setSelectedQuest(null)}
+          onSuccess={handleSubmissionSuccess}
+        />
+      )}
     </section>
   );
 }
 
-function QuestRow({ quest }: { quest: Quest }) {
+function QuestRow({
+  quest,
+  onSubmitFeedback,
+}: {
+  quest: Quest;
+  onSubmitFeedback: () => void;
+}) {
+  const isSubmitted = quest.status === "Submitted" || quest.status === "Reviewing";
+
   return (
-    <article className="grid gap-5 sm:grid-cols-[96px_1fr_auto] sm:items-center">
+    <article className="grid gap-5 sm:grid-cols-[96px_1fr_auto] sm:items-center rounded-xl p-2 transition-colors hover:bg-white/[0.02]">
       <Image
         src={quest.icon}
         alt={`${quest.brand} logo`}
@@ -250,9 +291,23 @@ function QuestRow({ quest }: { quest: Quest }) {
           ) : null}
         </div>
       </div>
-      <div className="flex  gap-4 text-3xl font-bold">
-        <Image src="/dashboard/xlm.svg" alt="" width={38} height={38} />
-        <span>{quest.reward}</span>
+      <div className="flex flex-col sm:items-end gap-3">
+        <div className="flex gap-4 text-3xl font-bold">
+          <Image src="/dashboard/xlm.svg" alt="" width={38} height={38} />
+          <span>{quest.reward}</span>
+        </div>
+        {!isSubmitted ? (
+          <button
+            type="button"
+            onClick={onSubmitFeedback}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#9011FF_0%,#B78CFF_100%)] px-4 py-2 text-sm font-semibold text-white shadow-md transition-transform hover:opacity-95 active:scale-[0.98]"
+          >
+            <Send className="size-3.5" />
+            Submit Feedback
+          </button>
+        ) : (
+          <span className="text-xs text-white/40">Submission Recorded</span>
+        )}
       </div>
     </article>
   );

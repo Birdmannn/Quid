@@ -33,6 +33,8 @@ export class IndexerService {
       update: {},
     });
 
-    this.logger.debug('Indexer tick complete — IndexerState checkpoint upserted.');
+    this.logger.debug(
+      'Indexer tick complete — IndexerState checkpoint upserted.',
+    );
   }
 }

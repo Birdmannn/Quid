@@ -56,6 +56,13 @@ jobs:
   frontend:
     name: Frontend Build
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_QUID_STORE_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+      NEXT_PUBLIC_QUID_REPUTATION_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+      NEXT_PUBLIC_QUID_MILESTONE_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_HORIZON_URL: https://horizon-testnet.stellar.org
+      NEXT_PUBLIC_FRIENDBOT_URL: https://friendbot.stellar.org
     defaults:
       run:
         working-directory: ./frontend

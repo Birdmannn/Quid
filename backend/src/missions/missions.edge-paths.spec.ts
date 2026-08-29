@@ -34,7 +34,11 @@ describe('E2E Edge Paths – Pause / Cancel / Reject / Capacity Errors (Issue #3
       findUnique: jest.Mock;
       updateMany: jest.Mock;
     };
-    missionDraft: { findFirst: jest.Mock; update: jest.Mock; create: jest.Mock };
+    missionDraft: {
+      findFirst: jest.Mock;
+      update: jest.Mock;
+      create: jest.Mock;
+    };
   };
 
   beforeEach(() => {
@@ -45,7 +49,11 @@ describe('E2E Edge Paths – Pause / Cancel / Reject / Capacity Errors (Issue #3
         findUnique: jest.fn(),
         updateMany: jest.fn(),
       },
-      missionDraft: { findFirst: jest.fn(), update: jest.fn(), create: jest.fn() },
+      missionDraft: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
+        create: jest.fn(),
+      },
     };
     service = new MissionsService(prisma as unknown as PrismaService);
   });
@@ -133,7 +141,7 @@ describe('E2E Edge Paths – Pause / Cancel / Reject / Capacity Errors (Issue #3
   // QuidError::NotAuthorized (6) – non-owner cannot approve/reject
   // -------------------------------------------------------------------------
   describe('QuidError #6 – Non-owner cannot approve or reject submissions', () => {
-    it('returns ForbiddenException when a hunter tries to approve another hunter\'s submission', async () => {
+    it("returns ForbiddenException when a hunter tries to approve another hunter's submission", async () => {
       prisma.mission.findUnique.mockResolvedValue({ ownerAddress: FOUNDER });
 
       await expect(
@@ -169,7 +177,7 @@ describe('E2E Edge Paths – Pause / Cancel / Reject / Capacity Errors (Issue #3
       prisma.mission.findUnique.mockResolvedValue({ ownerAddress: FOUNDER });
       prisma.submission.findUnique.mockResolvedValue({
         id: SUB_A,
-        missionId: 'different-mission',  // mismatch
+        missionId: 'different-mission', // mismatch
         status: SubmissionStatus.PENDING,
       });
 
@@ -209,8 +217,16 @@ describe('E2E Edge Paths – Pause / Cancel / Reject / Capacity Errors (Issue #3
       });
       // Two submissions = max capacity (maxParticipants: 2)
       const subs = [
-        { id: SUB_A, hunterAddress: HUNTER_A, status: SubmissionStatus.APPROVED },
-        { id: SUB_B, hunterAddress: HUNTER_B, status: SubmissionStatus.PENDING },
+        {
+          id: SUB_A,
+          hunterAddress: HUNTER_A,
+          status: SubmissionStatus.APPROVED,
+        },
+        {
+          id: SUB_B,
+          hunterAddress: HUNTER_B,
+          status: SubmissionStatus.PENDING,
+        },
       ];
       prisma.submission.findMany.mockResolvedValue(subs);
 

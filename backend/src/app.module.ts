@@ -8,6 +8,7 @@ import { MissionsModule } from './missions/missions.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UploadModule } from './upload/upload.module';
 import { IndexerModule } from './indexer/indexer.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -18,6 +19,9 @@ import { IndexerModule } from './indexer/indexer.module';
     ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
+    // Issue #331: exposes GET /users/me and PATCH /users/me/role so the
+    // onboarding role choice is stored against the Prisma user.
+    UsersModule,
     MissionsModule,
     UploadModule,
     IndexerModule,

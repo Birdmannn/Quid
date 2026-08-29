@@ -3,11 +3,13 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useWallet } from "@/context/WalletProvider";
 import {
   getDashboardRouteForRole,
   saveUserRole,
   type UserRole,
 } from "@/lib/onboarding";
+import { persistUserRole } from "@/lib/user-api";
 
 const ROLES: Array<{
   id: UserRole;
@@ -46,13 +48,44 @@ const ROLES: Array<{
 
 const RoleSelection = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { publicKey } = useWallet();
   const router = useRouter();
 
-  const handleContinue = () => {
-    if (!selectedRole) return;
+  /**
+   * Issue #331: the choice is written to the backend (against the SEP-10
+   * authenticated address) before we route anywhere, so the role is remembered
+   * server-side and not just in this browser. localStorage is still written -
+   * `persistUserRole` mirrors it - but only as a cache of the server value.
+   *
+   * A failed save keeps the user on this screen with the button re-enabled
+   * rather than dropping them into a dashboard the server disagrees with. With
+   * no API configured the save is local-only, so a frontend-only dev setup
+   * still gets through onboarding.
+   */
+  const handleContinue = async () => {
+    if (!selectedRole || saving) return;
 
-    saveUserRole(selectedRole);
-    router.push(getDashboardRouteForRole(selectedRole));
+    if (!publicKey) {
+      saveUserRole(selectedRole);
+      router.push(getDashboardRouteForRole(selectedRole));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await persistUserRole(publicKey, selectedRole);
+      router.push(getDashboardRouteForRole(selectedRole));
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not save your account type. Please try again.",
+      );
+      setSaving(false);
+    }
   };
 
   return (
@@ -164,14 +197,19 @@ const RoleSelection = () => {
             ))}
           </div>
 
-          <div className="mt-8 flex justify-center border-t border-[#241B4A] pt-8">
+          <div className="mt-8 flex flex-col items-center gap-3 border-t border-[#241B4A] pt-8">
+            {error && (
+              <p role="alert" className="text-sm text-red-400">
+                {error}
+              </p>
+            )}
             <button
               type="button"
               className="flex min-w-[14rem] items-center justify-center rounded-xl bg-[#9011FF] px-10 py-3 font-semibold text-white shadow-lg shadow-purple-500/30 transition-all duration-200 hover:bg-purple-700 hover:shadow-purple-500/50 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={selectedRole === null}
-              onClick={handleContinue}
+              disabled={selectedRole === null || saving}
+              onClick={() => void handleContinue()}
             >
-              Continue
+              {saving ? "Saving…" : "Continue"}
             </button>
           </div>
         </div>

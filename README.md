@@ -63,46 +63,201 @@ IPFS (feedback blobs; CID stored on-chain)
 | Contracts | Rust, Soroban SDK 23, Stellar CLI |
 | Payments | USDC / XLM on Stellar |
 
-## Quick start
+## Port & Service Map
 
-### Prerequisites
+| Service | Port | Default URL | Purpose |
+|---------|------|-------------|---------|
+| **Frontend** | `3000` | `http://localhost:3000` | Next.js web application |
+| **Backend API** | `3001` | `http://localhost:3001` | NestJS REST API |
+| **PostgreSQL** | `5432` | `localhost:5432` | Postgres database |
+| **Stellar Testnet Horizon** | Remote | `https://horizon-testnet.stellar.org` | Stellar Horizon testnet endpoint |
+| **Stellar Testnet RPC** | Remote | `https://soroban-testnet.stellar.org` | Soroban RPC testnet endpoint |
 
-- Node.js 18+
-- Docker (for Postgres)
-- [Stellar CLI](https://developers.stellar.org/docs/tools/developer-tools) (for contracts)
-- [Freighter](https://www.freighter.app/) wallet (testnet)
+---
 
-### Frontend
+## Full-Stack Local Demo Guide
 
-```bash
-cd frontend
-npm install
-cp .env.local.example .env.local   # or create .env.local (see frontend/README.md)
-npm run dev
-```
+Follow this step-by-step guide to run the entire Quid stack locally in under an hour.
 
-Open [http://localhost:3000](http://localhost:3000).
+### 1. Prerequisites
 
-### Backend
+- **Node.js**: v18 or v20+ (`node --version`)
+- **Docker & Docker Compose**: For running PostgreSQL (`docker compose version`)
+- **Stellar CLI**: For building and deploying Soroban contracts (`stellar --version`)
+- **Freighter Wallet**: Browser extension installed ([freighter.app](https://www.freighter.app/))
+
+---
+
+### 2. Database Setup (PostgreSQL)
+
+Start the local PostgreSQL container:
 
 ```bash
 cd backend
 docker compose up -d
-cp .env.example .env               # fill STELLAR_SERVER_SECRET, JWT_SECRET
+```
+
+Verify that Postgres is running on port `5432`:
+
+```bash
+docker compose ps
+# DB accessible at: postgresql://quid:quid@localhost:5432/quid_dev?schema=public
+```
+
+---
+
+### 3. Backend API Setup
+
+Configure environment variables and start the NestJS backend on port `3001`:
+
+```bash
+cd backend
+
+# Create environment file from template
+cp .env.example .env
+```
+
+Ensure `backend/.env` contains:
+
+```env
+DATABASE_URL="postgresql://quid:quid@localhost:5432/quid_dev?schema=public"
+PORT=3001
+JWT_SECRET="dev-jwt-secret-key-change-in-production"
+STELLAR_SERVER_SECRET="SBAY...YOUR_SERVER_SECRET_KEY"
+HOME_DOMAIN="localhost"
+WEB_AUTH_DOMAIN="localhost"
+STELLAR_NETWORK="Test SDF Network ; September 2015"
+```
+
+> **Tip:** You can generate a random Stellar keypair for `STELLAR_SERVER_SECRET` using `stellar keys generate server-key --network testnet --as-secret`.
+
+Install dependencies, run database migrations, and start the development server:
+
+```bash
 npm install
+npm run prisma:generate
 npm run prisma:migrate
 npm run start:dev
 ```
 
-API defaults to [http://localhost:3001](http://localhost:3001).
+Verify backend health at [http://localhost:3001/health](http://localhost:3001/health).
 
-### Contracts
+---
+
+### 4. Smart Contracts & Testnet Deployment
+
+To interact with real on-chain contracts on Stellar Testnet:
+
+1. Generate and fund a deployer identity:
+   ```bash
+   stellar keys generate alice --network testnet --as-secret
+   stellar keys fund alice --network testnet
+   ```
+
+2. Build and deploy contracts:
+   ```bash
+   cd quid-contract
+   stellar contract build
+
+   # Deploy quid-store
+   STORE_ID=$(stellar contract deploy \
+     --wasm target/wasm32v1-none/release/quid_store.wasm \
+     --source alice \
+     --network testnet)
+   echo "STORE_ID: $STORE_ID"
+
+   # Deploy quid-reputation
+   REP_ID=$(stellar contract deploy \
+     --wasm target/wasm32v1-none/release/quid_reputation.wasm \
+     --source alice \
+     --network testnet)
+   echo "REP_ID: $REP_ID"
+
+   # Deploy quid-milestone-escrow
+   MILESTONE_ID=$(stellar contract deploy \
+     --wasm target/wasm32v1-none/release/quid_milestone_escrow.wasm \
+     --source alice \
+     --network testnet)
+   echo "MILESTONE_ID: $MILESTONE_ID"
+
+   # Initialize reputation contract admin
+   stellar contract invoke \
+     --id $REP_ID \
+     --source alice \
+     --network testnet \
+     -- initialize --admin alice
+   ```
+
+*(For local testing without deploying contracts, you can use the placeholder IDs provided in `frontend/.env.example`.)*
+
+---
+
+### 5. Freighter Wallet Setup
+
+1. Open the **Freighter** browser extension.
+2. In Settings, ensure the network is set to **Testnet** (`Test SDF Network ; September 2015`).
+3. Fund your Freighter wallet address with testnet XLM via Friendbot at [Stellar Laboratory](https://laboratory.stellar.org/#account-creator) or by running:
+   ```bash
+   stellar keys fund <YOUR_FREIGHTER_PUBLIC_KEY> --network testnet
+   ```
+
+---
+
+### 6. Frontend Setup
+
+Configure environment variables and start Next.js on port `3000`:
 
 ```bash
-cd quid-contract
-stellar contract build
-# deploy steps: see quid-contract/README.md
+cd frontend
+
+# Copy template configuration
+cp .env.example .env.local
 ```
+
+Edit `frontend/.env.local` to match your backend port (`3001`) and deployed contract IDs:
+
+```env
+NEXT_PUBLIC_QUID_STORE_ID=<STORE_ID_OR_PLACEHOLDER>
+NEXT_PUBLIC_QUID_REPUTATION_ID=<REP_ID_OR_PLACEHOLDER>
+NEXT_PUBLIC_QUID_MILESTONE_ID=<MILESTONE_ID_OR_PLACEHOLDER>
+NEXT_PUBLIC_HORIZON_URL=https://horizon-testnet.stellar.org
+NEXT_PUBLIC_FRIENDBOT_URL=https://friendbot.stellar.org
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+Install dependencies and start the Next.js development server:
+
+```bash
+npm install
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+---
+
+## Troubleshooting & Common Pitfalls
+
+### 1. Port Conflicts & CORS Errors
+- **Issue:** Frontend shows network/CORS error when calling API (`http://localhost:3001`).
+- **Fix:** Verify backend is running on port `3001` (check `PORT=3001` in `backend/.env`). If backend runs on port `3000` by accident, it will collide with Next.js. Backend CORS is enabled by default via `app.enableCors()`.
+
+### 2. Freighter Network Mismatch or Unfunded Account
+- **Issue:** Freighter transactions fail or reject immediately.
+- **Fix:**
+  - Verify Freighter network is set to **Testnet** (not Mainnet or Futurenet).
+  - Ensure the active account has sufficient testnet XLM for transaction fees and minimum reserve balances.
+
+### 3. PostgreSQL / Prisma Connection Refused
+- **Issue:** `PrismaClientInitializationError: Can't reach database server at localhost:5432`.
+- **Fix:**
+  - Ensure Docker container is running: `cd backend && docker compose ps`.
+  - Restart container if needed: `docker compose down && docker compose up -d`.
+  - Check database credentials in `backend/.env` match `docker-compose.yml` (`quid:quid@localhost:5432/quid_dev`).
+
+### 4. Contract Invocation Errors
+- **Issue:** Contract call reverts or contract not found.
+- **Fix:** Ensure contract IDs in `frontend/.env.local` match the exact addresses output during `stellar contract deploy` on Testnet (starting with `C...`).
 
 ## Roles
 

@@ -1,0 +1,155 @@
+/**
+ * Issue #344 – QuidError → human-readable UI string mapping.
+ *
+ * Error codes are defined in:
+ *   quid-contract/contracts/quid-store/src/error.rs
+ *
+ * The numeric codes come from the Soroban contract error enum and are
+ * surfaced in failed transaction result bodies.  The frontend parses the
+ * error code from the transaction result and maps it to a user-facing
+ * message using this module.
+ */
+
+export type QuidErrorCode = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
+
+export interface QuidErrorInfo {
+  /** Short label shown in toasts / inline banners */
+  title: string;
+  /** Extended explanation shown in modal error state */
+  description: string;
+  /** Whether the user can reasonably retry the same action */
+  retryable: boolean;
+}
+
+/** Maps every QuidError variant to a user-facing message. */
+export const QUID_ERROR_MAP: Record<QuidErrorCode, QuidErrorInfo> = {
+  /** MissionNotFound = 1 */
+  1: {
+    title: 'Quest not found',
+    description: 'The quest you are trying to interact with no longer exists on-chain.',
+    retryable: false,
+  },
+  /** MissionClosed = 2 – covers PAUSED / CANCELLED / COMPLETED */
+  2: {
+    title: 'Quest is closed',
+    description: 'This quest has been paused or closed by the founder. New submissions are not accepted.',
+    retryable: false,
+  },
+  /** MissionFull = 3 – capacity error */
+  3: {
+    title: 'Quest is full',
+    description: 'The maximum number of hunters has been reached for this quest. Try a different one.',
+    retryable: false,
+  },
+  /** AlreadySubmitted = 4 */
+  4: {
+    title: 'Already submitted',
+    description: 'You have already submitted feedback for this quest. Each hunter may submit once.',
+    retryable: false,
+  },
+  /** InsufficientFunds = 5 */
+  5: {
+    title: 'Insufficient funds',
+    description: 'Your wallet does not have enough XLM to cover the refundable stake and transaction fees.',
+    retryable: true,
+  },
+  /** NotAuthorized = 6 */
+  6: {
+    title: 'Not authorized',
+    description: 'You are not authorized to perform this action. Only the quest founder can approve or reject.',
+    retryable: false,
+  },
+  /** NegativeReward = 7 */
+  7: {
+    title: 'Invalid reward amount',
+    description: 'The reward amount must be a positive number.',
+    retryable: true,
+  },
+  /** InvalidState = 8 – generic state machine violation */
+  8: {
+    title: 'Invalid quest state',
+    description: 'This action cannot be performed while the quest is in its current state.',
+    retryable: false,
+  },
+  /** AlreadyPaid = 9 */
+  9: {
+    title: 'Already paid',
+    description: 'This submission has already been paid out. The reward cannot be sent twice.',
+    retryable: false,
+  },
+  /** MissionNotOpen = 10 – submit blocked because mission is PAUSED */
+  10: {
+    title: 'Quest is paused',
+    description: 'The founder has paused this quest. Submissions are temporarily blocked.',
+    retryable: false,
+  },
+  /** SubmissionNotFound = 11 */
+  11: {
+    title: 'Submission not found',
+    description: 'The submission you are trying to approve or reject no longer exists.',
+    retryable: false,
+  },
+  /** NotPending = 12 – double-approve / double-reject */
+  12: {
+    title: 'Submission already reviewed',
+    description: 'This submission has already been approved or rejected and cannot be changed.',
+    retryable: false,
+  },
+  /** InvalidAmount = 13 */
+  13: {
+    title: 'Invalid amount',
+    description: 'The amount entered is invalid. Please check the value and try again.',
+    retryable: true,
+  },
+  /** TreasuryNotSet = 14 */
+  14: {
+    title: 'Contract configuration error',
+    description: 'The protocol treasury address has not been configured. Contact the Quid team.',
+    retryable: false,
+  },
+  /** StakeNotFound = 15 */
+  15: {
+    title: 'Stake not found',
+    description: 'No stake record was found for this submission. The stake may have already been refunded.',
+    retryable: false,
+  },
+  /** InsufficientAssetBalance = 16 */
+  16: {
+    title: 'Insufficient asset balance',
+    description: 'The reward token balance is too low to complete the payout. Check the escrow balance.',
+    retryable: false,
+  },
+  /** FeeCollectorNotSet = 17 */
+  17: {
+    title: 'Contract configuration error',
+    description: 'The fee collector address has not been configured. Contact the Quid team.',
+    retryable: false,
+  },
+};
+
+/**
+ * Extracts a human-readable error from a Soroban transaction failure.
+ *
+ * @param errorResult - The raw error result string from the RPC (may contain
+ *   the numeric error code, e.g. "Error(Contract, #4)" or similar).
+ * @returns QuidErrorInfo if the code is recognized, or a generic fallback.
+ */
+export function parseQuidError(errorResult: unknown): QuidErrorInfo {
+  const fallback: QuidErrorInfo = {
+    title: 'Transaction failed',
+    description:
+      'An unexpected error occurred on-chain. Please try again or contact support.',
+    retryable: true,
+  };
+
+  if (!errorResult) return fallback;
+
+  const raw = typeof errorResult === 'string' ? errorResult : JSON.stringify(errorResult);
+
+  // Soroban error codes appear as "Error(Contract, #N)" in result XDR decode
+  const match = raw.match(/#(\d+)/);
+  if (!match) return fallback;
+
+  const code = parseInt(match[1], 10) as QuidErrorCode;
+  return QUID_ERROR_MAP[code] ?? fallback;
+}

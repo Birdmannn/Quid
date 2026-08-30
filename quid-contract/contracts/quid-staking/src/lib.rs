@@ -54,7 +54,7 @@ impl QuidStakingContract {
 
         token::Client::new(&env, &token_address).transfer(
             &hunter,
-            &env.current_contract_address(),
+            env.current_contract_address(),
             &amount,
         );
         let balance = Self::balance(&env, &hunter, &token_address);

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -17,6 +19,15 @@ import { UsersModule } from './users/users.module';
       cache: true,
     }),
     ScheduleModule.forRoot(),
+    // Issue #348: global rate limiting – 100 requests per 60 s per IP.
+    // Auth endpoints apply a tighter override via @Throttle() decorator.
+    ThrottlerModule.forRoot([
+      {
+        name: 'global',
+        ttl: 60_000, // 60 seconds (ms)
+        limit: 100,
+      },
+    ]),
     PrismaModule,
     AuthModule,
     // Issue #331: exposes GET /users/me and PATCH /users/me/role so the
@@ -27,6 +38,13 @@ import { UsersModule } from './users/users.module';
     IndexerModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    // Bind ThrottlerGuard globally so every route is rate-limited by default.
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

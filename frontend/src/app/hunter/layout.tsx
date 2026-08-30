@@ -1,5 +1,7 @@
+"use client";
+
 import Sidebar from "@/components/hunter/Sidebar";
-import RequireWallet from "@/components/hunter/RequireWallet";
+import RequireWallet from "@/components/auth/RequireWallet";
 import RequireRole from "@/components/auth/RequireRole";
 import TopNav from "@/components/hunter/TopNav";
 

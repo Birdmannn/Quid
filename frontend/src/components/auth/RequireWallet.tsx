@@ -20,7 +20,14 @@ export default function RequireWallet({
   }, [connected, router]);
 
   if (!connected) {
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#0D0B10] text-white">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-[#9011FF] border-t-transparent" />
+          <p className="text-sm text-[#8C86B8]">Checking wallet connection…</p>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;

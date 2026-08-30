@@ -51,11 +51,7 @@ impl QuidLeaderboardContract {
     /// Initialize the contract.  Must be called exactly once.
     /// `admin`    – can change the recorder and call admin-only functions.
     /// `recorder` – the only address allowed to call `record_score`.
-    pub fn initialize(
-        env: Env,
-        admin: Address,
-        recorder: Address,
-    ) -> Result<(), LeaderboardError> {
+    pub fn initialize(env: Env, admin: Address, recorder: Address) -> Result<(), LeaderboardError> {
         admin.require_auth();
 
         if env.storage().instance().has(&DataKey::Admin) {
@@ -63,12 +59,8 @@ impl QuidLeaderboardContract {
         }
 
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage()
-            .instance()
-            .set(&DataKey::Recorder, &recorder);
-        env.storage()
-            .instance()
-            .set(&DataKey::EpochCount, &0_u64);
+        env.storage().instance().set(&DataKey::Recorder, &recorder);
+        env.storage().instance().set(&DataKey::EpochCount, &0_u64);
 
         Ok(())
     }
@@ -147,11 +139,7 @@ impl QuidLeaderboardContract {
         Self::require_admin(&env, &caller)?;
 
         // Ensure no epoch is currently open.
-        if env
-            .storage()
-            .instance()
-            .has(&DataKey::ActiveEpochId)
-        {
+        if env.storage().instance().has(&DataKey::ActiveEpochId) {
             return Err(LeaderboardError::EpochAlreadyActive);
         }
 
@@ -189,7 +177,11 @@ impl QuidLeaderboardContract {
             .instance()
             .set(&DataKey::ActiveEpochId, &epoch_id);
 
-        EpochStartedEvent { epoch_id, started_at }.publish(&env);
+        EpochStartedEvent {
+            epoch_id,
+            started_at,
+        }
+        .publish(&env);
 
         Ok(epoch_id)
     }
@@ -430,9 +422,7 @@ impl QuidLeaderboardContract {
             .get(&DataKey::EpochCount)
             .unwrap_or(0);
         count += 1;
-        env.storage()
-            .instance()
-            .set(&DataKey::EpochCount, &count);
+        env.storage().instance().set(&DataKey::EpochCount, &count);
         count
     }
 }

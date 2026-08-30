@@ -1033,6 +1033,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "quid-quest-bundle"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "quid-referral"
 version = "0.0.0"
 dependencies = [
@@ -1047,7 +1054,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "quid-staking"
+version = "0.0.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "quid-store"
+version = "0.0.0"
+dependencies = [
+ "quid-fee-collector",
+ "quid-staking",
+ "soroban-sdk",
+]
+
+[[package]]
+name = "quid-treasury-multisig"
 version = "0.0.0"
 dependencies = [
  "quid-fee-collector",

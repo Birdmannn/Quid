@@ -20,4 +20,5 @@ pub enum QuidError {
     StakeNotFound = 15,
     InsufficientAssetBalance = 16,
     FeeCollectorNotSet = 17,
+    StakingPoolNotSet = 18,
 }

@@ -55,6 +55,8 @@ pub enum DataKey {
     Submission(u64, Address),
     HunterStake(u64, Address),
     Treasury,
+    /// Optional reusable hunter stake pool.
+    StakingPool,
     /// Optional protocol fee vault (`quid-fee-collector`) charged on mission create.
     FeeCollector,
 }

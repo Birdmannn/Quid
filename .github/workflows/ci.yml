@@ -56,6 +56,13 @@ jobs:
   frontend:
     name: Frontend Build
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_QUID_STORE_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+      NEXT_PUBLIC_QUID_REPUTATION_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+      NEXT_PUBLIC_QUID_MILESTONE_ID: CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_HORIZON_URL: https://horizon-testnet.stellar.org
+      NEXT_PUBLIC_FRIENDBOT_URL: https://friendbot.stellar.org
     defaults:
       run:
         working-directory: ./frontend
@@ -84,8 +91,26 @@ jobs:
   # JOB 3: BACKEND (NestJS)
   # ---------------------------------------------------
   backend:
-    name: Backend Build
+    name: Backend Build & Test
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: quid
+          POSTGRES_PASSWORD: quid
+          POSTGRES_DB: quid_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: "postgresql://quid:quid@localhost:5432/quid_dev?schema=public"
+      JWT_SECRET: "ci-secret-jwt-key"
+      PORT: "3001"
     defaults:
       run:
         working-directory: ./backend
@@ -98,12 +123,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Run Prisma Migrations
+        run: npm run prisma:migrate:deploy
 
       - name: Lint Backend
         run: npm run lint
+
+      - name: Run Backend Tests
+        run: npm test
 
       - name: Build Backend
         run: npm run build

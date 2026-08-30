@@ -14,7 +14,7 @@ export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const linkClasses = (href: string) =>
-    `flex items-center gap-2 pl-3 py-2 transition-colors
+    `flex items-center gap-2 pl-3 py-2.5 min-h-11 transition-colors
      ${
        pathname === href
          ? "border-l-[3px] border-[#9011FF] text-[#FFFFFF]"
@@ -26,7 +26,8 @@ export default function Sidebar() {
       {/* Hamburger button - only visible on mobile */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden fixed top-4 right-4 z-50 text-white bg-[#141026] p-2 rounded-lg"
+        aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+        className="md:hidden fixed top-4 right-4 z-50 text-white bg-[#141026] p-2.5 rounded-lg flex items-center justify-center min-h-11 min-w-11"
       >
         {isOpen ? <HiX size={24} /> : <HiMenu size={24} />}
       </button>
@@ -34,7 +35,7 @@ export default function Sidebar() {
       {/* Overlay - only visible on mobile when sidebar is open */}
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -42,7 +43,7 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside
         className={`
-    w-64 sm:w-56 xs:w-48 border-r p-4 bg-[#141026] flex flex-col
+    w-64 max-w-[80vw] sm:w-56 border-r p-4 bg-[#141026] flex flex-col
     md:relative md:translate-x-0 md:h-screen
     fixed top-0 left-0 h-full z-40 transition-transform duration-300
     ${isOpen ? "translate-x-0" : "-translate-x-full"}

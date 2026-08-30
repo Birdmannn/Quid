@@ -2,9 +2,10 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 
-import { MissionStatus, Prisma } from '@prisma/client';
+import { MissionStatus, Prisma, SubmissionStatus } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -52,8 +53,7 @@ export class MissionsService {
 
   async listPublicMissions(query: ListMissionsQueryDto): Promise<unknown> {
     const normalizedStatus = query.status?.toUpperCase() as
-      | MissionStatus
-      | undefined;
+      MissionStatus | undefined;
     const where = normalizedStatus ? { status: normalizedStatus } : {};
     const orderBy = {
       createdAt: query.sort === MissionListSort.OLDEST ? 'asc' : 'desc',
@@ -122,6 +122,21 @@ export class MissionsService {
     return created;
   }
 
+  async getLatestDraft(
+    ownerAddress: string,
+  ): Promise<Prisma.MissionDraftGetPayload<null>> {
+    const draft = await this.prisma.missionDraft.findFirst({
+      where: { ownerAddress },
+      orderBy: { updatedAt: 'desc' },
+    });
+
+    if (!draft) {
+      throw new NotFoundException('Mission draft not found');
+    }
+
+    return draft;
+  }
+
   async getMissionSubmissions(
     missionId: string,
     ownerAddress: string,
@@ -155,5 +170,96 @@ export class MissionsService {
     });
 
     return submissions;
+  }
+
+  async approveSubmission(
+    missionId: string,
+    submissionId: string,
+    ownerAddress: string,
+  ): Promise<unknown> {
+    return this.reviewSubmission(
+      missionId,
+      submissionId,
+      ownerAddress,
+      SubmissionStatus.APPROVED,
+    );
+  }
+
+  async rejectSubmission(
+    missionId: string,
+    submissionId: string,
+    ownerAddress: string,
+    reason?: string,
+  ): Promise<unknown> {
+    return this.reviewSubmission(
+      missionId,
+      submissionId,
+      ownerAddress,
+      SubmissionStatus.REJECTED,
+      reason,
+    );
+  }
+
+  private async reviewSubmission(
+    missionId: string,
+    submissionId: string,
+    ownerAddress: string,
+    status: SubmissionStatus,
+    rejectionReason?: string,
+  ): Promise<unknown> {
+    const mission = await this.prisma.mission.findUnique({
+      where: { id: missionId },
+      select: { ownerAddress: true },
+    });
+
+    if (!mission) {
+      throw new NotFoundException(`Mission ${missionId} not found`);
+    }
+
+    if (mission.ownerAddress !== ownerAddress) {
+      throw new ForbiddenException(
+        'You are not authorized to review submissions for this mission',
+      );
+    }
+
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
+      select: { id: true, missionId: true, status: true },
+    });
+
+    if (!submission || submission.missionId !== missionId) {
+      throw new NotFoundException(`Submission ${submissionId} not found`);
+    }
+
+    if (submission.status !== SubmissionStatus.PENDING) {
+      throw new ConflictException(
+        `Submission ${submissionId} cannot transition from ${submission.status} to ${status}`,
+      );
+    }
+
+    const result = await this.prisma.submission.updateMany({
+      where: {
+        id: submissionId,
+        missionId,
+        status: SubmissionStatus.PENDING,
+      },
+      data: {
+        status,
+        rejectionReason:
+          status === SubmissionStatus.REJECTED
+            ? rejectionReason?.trim() || null
+            : null,
+      },
+    });
+
+    if (result.count !== 1) {
+      throw new ConflictException(
+        `Submission ${submissionId} is no longer pending`,
+      );
+    }
+
+    return this.prisma.submission.findUnique({
+      where: { id: submissionId },
+    });
   }
 }

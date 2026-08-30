@@ -13,7 +13,11 @@ const QuestHeader = () => {
     <header className="relative py-5 border-b border-b-[#241B4A] px-4 md:px-0 flex items-center justify-between">
       {/* Mobile Hamburger */}
       <div className="md:hidden">
-        <button onClick={() => setIsOpen(!isOpen)}>
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label={isOpen ? "Close menu" : "Open menu"}
+          className="flex items-center justify-center min-h-11 min-w-11 -ml-2"
+        >
           {isOpen ? <HiX size={24} /> : <HiMenu size={24} />}
         </button>
       </div>

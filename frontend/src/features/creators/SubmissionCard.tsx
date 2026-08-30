@@ -7,10 +7,12 @@ import { useState } from "react";
 export default function SubmissionCard({
   submission,
   onApprove,
+  onReject,
   isApproved,
 }: {
   submission: Submission;
   onApprove: () => void;
+  onReject?: () => void;
   isApproved?: boolean;
 }) {
   const [selectWinner, setSelectWinner] = useState<Record<string, boolean>>({});
@@ -89,13 +91,30 @@ export default function SubmissionCard({
               </span>
 
               {submission.status === "pending" && !isApproved && (
-                <button
-                  onClick={onApprove}
-                  className="bg-[#9011FF] hover:bg-[#7d0dd4] text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
-                  title="Approve submission"
-                >
-                  ✓ Approve
-                </button>
+                <>
+                  <button
+                    onClick={onApprove}
+                    className="bg-[#9011FF] hover:bg-[#7d0dd4] text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                    title="Approve submission"
+                  >
+                    ✓ Approve
+                  </button>
+                  {onReject && (
+                    <button
+                      onClick={onReject}
+                      className="border border-red-500/50 text-red-400 hover:bg-red-500/10 px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                      title="Reject submission"
+                    >
+                      ✕ Reject
+                    </button>
+                  )}
+                </>
+              )}
+
+              {submission.status === "rejected" && (
+                <span className="px-3 py-1 rounded-lg text-sm font-medium bg-red-500/10 text-red-400 border border-red-500/30">
+                  Rejected
+                </span>
               )}
 
               <button

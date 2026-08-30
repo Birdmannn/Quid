@@ -1,11 +1,15 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { MissionsService } from './missions.service';
 import { MissionListSort } from './dto/list-missions-query.dto';
-import { MissionStatus } from '@prisma/client';
+import { MissionStatus, SubmissionStatus } from '@prisma/client';
 
 const listInclude = {
   owner: { select: { address: true, displayName: true } },
@@ -21,7 +25,11 @@ describe('MissionsService', () => {
   let service: MissionsService;
   let prisma: {
     mission: { findMany: jest.Mock; findUnique: jest.Mock };
-    submission: { findMany: jest.Mock };
+    submission: {
+      findMany: jest.Mock;
+      findUnique: jest.Mock;
+      updateMany: jest.Mock;
+    };
 
     missionDraft: {
       findFirst: jest.Mock;
@@ -38,6 +46,8 @@ describe('MissionsService', () => {
       },
       submission: {
         findMany: jest.fn(),
+        findUnique: jest.fn(),
+        updateMany: jest.fn(),
       },
 
       missionDraft: {
@@ -208,6 +218,120 @@ describe('MissionsService', () => {
     });
   });
 
+  describe('submission review', () => {
+    beforeEach(() => {
+      prisma.mission.findUnique.mockResolvedValue({
+        ownerAddress: '0xowner',
+      });
+      prisma.submission.findUnique
+        .mockResolvedValueOnce({
+          id: 'sub-1',
+          missionId: 'mission-1',
+          status: SubmissionStatus.PENDING,
+        })
+        .mockResolvedValueOnce({
+          id: 'sub-1',
+          missionId: 'mission-1',
+          status: SubmissionStatus.APPROVED,
+        });
+      prisma.submission.updateMany.mockResolvedValue({ count: 1 });
+    });
+
+    it('approves a pending submission for the mission owner', async () => {
+      const result = await service.approveSubmission(
+        'mission-1',
+        'sub-1',
+        '0xowner',
+      );
+
+      expect(prisma.submission.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'sub-1',
+          missionId: 'mission-1',
+          status: SubmissionStatus.PENDING,
+        },
+        data: {
+          status: SubmissionStatus.APPROVED,
+          rejectionReason: null,
+        },
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ status: SubmissionStatus.APPROVED }),
+      );
+    });
+
+    it('rejects a pending submission and persists the trimmed reason', async () => {
+      prisma.submission.findUnique
+        .mockReset()
+        .mockResolvedValueOnce({
+          id: 'sub-1',
+          missionId: 'mission-1',
+          status: SubmissionStatus.PENDING,
+        })
+        .mockResolvedValueOnce({
+          id: 'sub-1',
+          status: SubmissionStatus.REJECTED,
+          rejectionReason: 'Incomplete work',
+        });
+
+      await service.rejectSubmission(
+        'mission-1',
+        'sub-1',
+        '0xowner',
+        '  Incomplete work  ',
+      );
+
+      expect(prisma.submission.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            status: SubmissionStatus.REJECTED,
+            rejectionReason: 'Incomplete work',
+          },
+        }),
+      );
+    });
+
+    it('returns 403 without changing the submission for a non-owner', async () => {
+      await expect(
+        service.approveSubmission('mission-1', 'sub-1', '0xother'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.submission.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('rejects a transition from a terminal review status', async () => {
+      prisma.submission.findUnique.mockReset().mockResolvedValue({
+        id: 'sub-1',
+        missionId: 'mission-1',
+        status: SubmissionStatus.REJECTED,
+      });
+
+      await expect(
+        service.approveSubmission('mission-1', 'sub-1', '0xowner'),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.submission.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('rejects a concurrent transition when the pending update loses the race', async () => {
+      prisma.submission.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.approveSubmission('mission-1', 'sub-1', '0xowner'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('returns 404 when the submission belongs to another mission', async () => {
+      prisma.submission.findUnique.mockReset().mockResolvedValue({
+        id: 'sub-1',
+        missionId: 'mission-2',
+        status: SubmissionStatus.PENDING,
+      });
+
+      await expect(
+        service.rejectSubmission('mission-1', 'sub-1', '0xowner'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
   describe('saveDraft', () => {
     it('creates a draft when no existing draft is found', async () => {
       prisma.missionDraft.findFirst.mockResolvedValue(null);
@@ -332,6 +456,34 @@ describe('MissionsService', () => {
       });
       expect(prisma.missionDraft.create).not.toHaveBeenCalled();
       expect(result).toEqual(updatedDraft);
+    });
+  });
+
+  describe('getLatestDraft', () => {
+    it('returns the most recently updated draft for the owner', async () => {
+      const latestDraft = {
+        id: 'draft-2',
+        ownerAddress: '0xabc',
+        title: 'Latest Draft',
+        data: { step: 3 },
+      };
+      prisma.missionDraft.findFirst.mockResolvedValue(latestDraft);
+
+      await expect(service.getLatestDraft('0xabc')).resolves.toEqual(
+        latestDraft,
+      );
+      expect(prisma.missionDraft.findFirst).toHaveBeenCalledWith({
+        where: { ownerAddress: '0xabc' },
+        orderBy: { updatedAt: 'desc' },
+      });
+    });
+
+    it('throws NotFoundException when the owner has no draft', async () => {
+      prisma.missionDraft.findFirst.mockResolvedValue(null);
+
+      await expect(service.getLatestDraft('0xabc')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

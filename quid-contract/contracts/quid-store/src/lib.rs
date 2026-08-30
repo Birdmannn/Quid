@@ -1,5 +1,9 @@
 #![no_std]
-use soroban_sdk::{contract, contractevent, contractimpl, contracttype, Address, Env, String};
+use soroban_sdk::{
+    auth::{ContractContext, InvokerContractAuthEntry, SubContractInvocation},
+    contract, contractclient, contractevent, contractimpl, contracttype, vec, Address, Env,
+    IntoVal, String, Symbol,
+};
 
 mod error;
 mod types;
@@ -48,6 +52,26 @@ pub struct MissionPauseEvent {
     pub mission_id: u64,
 }
 
+#[contractevent(topics = ["fee", "charged"])]
+pub struct FeeChargedEvent {
+    pub mission_id: u64,
+    pub token: Address,
+    pub amount: i128,
+}
+
+/// Subset of `quid-fee-collector` this contract calls.
+///
+/// Declared as a client interface rather than a crate dependency so the store
+/// wasm stays free of the collector's code.
+#[contractclient(name = "FeeCollectorClient")]
+pub trait FeeCollector {
+    /// Fee owed on `gross_amount` at the vault's current rate.
+    fn compute_fee(env: Env, gross_amount: i128) -> i128;
+
+    /// Pull an exact fee amount from `from` into the vault.
+    fn deposit_fee(env: Env, from: Address, token: Address, amount: i128);
+}
+
 #[contract]
 pub struct QuidStoreContract;
 
@@ -77,8 +101,15 @@ impl QuidStoreContract {
             .checked_mul(max_participants as i128)
             .ok_or(QuidError::NegativeReward)?;
 
+        // The protocol fee is charged on top of the escrow, so the full reward
+        // pool stays available to hunters. Zero when no collector is configured.
+        let fee = Self::quote_protocol_fee(&env, total_needed)?;
+        let owner_debit = total_needed
+            .checked_add(fee)
+            .ok_or(QuidError::NegativeReward)?;
+
         let token_client = token::Client::new(&env, &reward.reward_token);
-        token_client.transfer(&owner, env.current_contract_address(), &total_needed);
+        token_client.transfer(&owner, env.current_contract_address(), &owner_debit);
 
         let mission_id = Self::get_next_mission_id(&env);
 
@@ -111,6 +142,18 @@ impl QuidStoreContract {
         env.storage()
             .persistent()
             .extend_ttl(&DataKey::Mission(mission_id), 5184000, 5184000);
+
+        if fee > 0 {
+            let collector = Self::get_fee_collector(env.clone())?;
+            Self::forward_fee(&env, &collector, &mission.reward_token, fee);
+
+            FeeChargedEvent {
+                mission_id,
+                token: mission.reward_token,
+                amount: fee,
+            }
+            .publish(&env);
+        }
 
         MissionCreateEvent { mission_id, owner }.publish(&env);
 
@@ -417,6 +460,79 @@ impl QuidStoreContract {
         env.storage()
             .instance()
             .set(&DataKey::Treasury, &new_treasury);
+    }
+
+    /// Point the store at a `quid-fee-collector` vault.
+    ///
+    /// Follows the same handover rule as `set_treasury`: the first caller to
+    /// claim the slot must authorize as the new collector, and afterwards only
+    /// the current collector can move it.
+    pub fn set_fee_collector(env: Env, new_collector: Address) {
+        if let Some(current) = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::FeeCollector)
+        {
+            current.require_auth();
+        } else {
+            new_collector.require_auth();
+        }
+
+        env.storage()
+            .instance()
+            .set(&DataKey::FeeCollector, &new_collector);
+    }
+
+    /// Get the configured protocol fee vault.
+    pub fn get_fee_collector(env: Env) -> Result<Address, QuidError> {
+        env.storage()
+            .instance()
+            .get(&DataKey::FeeCollector)
+            .ok_or(QuidError::FeeCollectorNotSet)
+    }
+
+    /// Protocol fee owed on `gross_amount`, or zero when no vault is configured.
+    ///
+    /// Missions created before a collector is set stay fee-free, so wiring the
+    /// vault up is a non-breaking change for existing deployments.
+    fn quote_protocol_fee(env: &Env, gross_amount: i128) -> Result<i128, QuidError> {
+        let Some(collector) = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::FeeCollector)
+        else {
+            return Ok(0);
+        };
+
+        let fee = FeeCollectorClient::new(env, &collector).compute_fee(&gross_amount);
+        if fee < 0 || fee > gross_amount {
+            return Err(QuidError::InvalidAmount);
+        }
+
+        Ok(fee)
+    }
+
+    /// Hand `fee` (already escrowed here) over to the fee vault.
+    ///
+    /// The vault pulls the tokens itself, which happens one frame below this
+    /// call, so the store has to pre-authorize that nested transfer on its own
+    /// behalf — a contract's implicit auth only covers its direct sub-call.
+    fn forward_fee(env: &Env, collector: &Address, token: &Address, fee: i128) {
+        let store = env.current_contract_address();
+
+        env.authorize_as_current_contract(vec![
+            env,
+            InvokerContractAuthEntry::Contract(SubContractInvocation {
+                context: ContractContext {
+                    contract: token.clone(),
+                    fn_name: Symbol::new(env, "transfer"),
+                    args: (store.clone(), collector.clone(), fee).into_val(env),
+                },
+                sub_invocations: vec![env],
+            }),
+        ]);
+
+        FeeCollectorClient::new(env, collector).deposit_fee(&store, token, &fee);
     }
 
     /// Get the protocol treasury address.

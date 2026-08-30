@@ -91,6 +91,7 @@ model Submission {
  textPayload String? @map("text_payload")
  sentiment Float? @map("sentiment")
  status SubmissionStatus @default(PENDING) @map("status")
+ rejectionReason String? @map("rejection_reason")
  createdAt DateTime @default(now()) @map("created_at")
  updatedAt DateTime @updatedAt @map("updated_at")
 

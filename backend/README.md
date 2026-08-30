@@ -1,98 +1,133 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Quid Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS API that supports Quid off-chain: wallet auth (SEP-10), mission indexing/drafts, file upload (IPFS — planned), and a Soroban event indexer (scaffold).
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Why this exists
 
-## Description
+Smart contracts hold escrow and truth for payouts. The backend makes the product usable:
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Fast mission list / search / filter (Postgres)
+- Draft missions before on-chain publish
+- Pin feedback media to IPFS and return CIDs
+- Sync on-chain events into the DB for dashboards
 
-## Project setup
+The frontend should call this API for browse/auth/upload; Freighter should call contracts for create / submit / pay.
 
-```bash
-$ pnpm install
-```
+## Stack
 
-## Compile and run the project
+- NestJS 11 + TypeScript
+- Prisma 7 + PostgreSQL 15
+- Passport JWT + Stellar SDK (SEP-10)
+- `@nestjs/schedule` (indexer cron)
 
-```bash
-# development
-$ pnpm run start
+## What’s working
 
-# watch mode
-$ pnpm run start:dev
+| Feature | Status |
+|---------|--------|
+| `GET /health` | Live |
+| SEP-10 challenge + verify → JWT | Live |
+| Mission list / detail / `me` / submissions (read) | Live |
+| Mission drafts (`POST /missions/drafts`) | Live |
+| Upload endpoints | Stub (acks bytes/JSON only — no IPFS) |
+| Chain indexer cron | Scaffold (checkpoint only — no event sync) |
 
-# production mode
-$ pnpm run start:prod
-```
+## What’s missing (MVP gaps)
 
-## Run tests
+- Real IPFS / Pinata (or similar) pinning → return CID
+- Indexer: poll `quid-store` events → upsert missions/submissions
+- Publish mission after on-chain create (persist `onChainId`)
+- Create submission / approve / reject API flows synced with chain
+- Hardening: rate limits, locked-down CORS, production secrets
+- Frontend not wired to this API yet
 
-```bash
-# unit tests
-$ pnpm run test
+## Setup
 
-# e2e tests
-$ pnpm run test:e2e
+### Prerequisites
 
-# test coverage
-$ pnpm run test:cov
-```
+- Node.js 18+
+- Docker (Postgres)
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Database
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+cd backend
+docker compose up -d
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Starts Postgres on `localhost:5432` (`quid` / `quid` / `quid_dev`).
 
-## Resources
+### Env
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+cp .env.example .env
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Postgres connection string |
+| `PORT` | API port (default `3001` in `.env.example`) |
+| `JWT_SECRET` | JWT signing secret |
+| `STELLAR_SERVER_SECRET` | Server keypair secret for SEP-10 |
+| `HOME_DOMAIN` / `WEB_AUTH_DOMAIN` | SEP-10 domains |
+| `STELLAR_NETWORK` | Network passphrase (testnet by default) |
+| `RPC_URL` / `CONTRACT_ID` | For indexer (when implemented) |
 
-## Support
+Generate a Stellar keypair for `STELLAR_SERVER_SECRET` (keep it server-side only).
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Install & run
 
-## Stay in touch
+```bash
+npm install
+npm run prisma:migrate
+npm run start:dev
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+API: [http://localhost:3001](http://localhost:3001)
 
-## License
+## HTTP surface
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Method | Path | Auth | Notes |
+|--------|------|------|-------|
+| `GET` | `/health` | No | Health check |
+| `GET` | `/auth/challenge?address=` | No | SEP-10 challenge |
+| `POST` | `/auth/verify` | No | Returns JWT |
+| `GET` | `/missions` | No | List / filter |
+| `GET` | `/missions/me` | JWT | Caller’s missions |
+| `GET` | `/missions/:id` | No | Detail |
+| `GET` | `/missions/:id/submissions` | JWT | Owner only |
+| `POST` | `/missions/drafts` | JWT | Save draft |
+| `POST` | `/upload` | JWT | Stub |
+| `POST` | `/upload/json` | JWT | Stub |
+
+## Scripts
+
+```bash
+npm run start:dev       # watch mode
+npm run build
+npm run start:prod
+npm run test
+npm run test:e2e
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:studio
+```
+
+## Project layout
+
+```text
+backend/
+├── docker-compose.yml
+├── prisma/                 # schema + migrations
+└── src/
+    ├── auth/               # SEP-10 + JWT
+    ├── missions/
+    ├── upload/             # stub
+    ├── indexer/            # scaffold
+    └── prisma/
+```
+
+## Related docs
+
+- Root: [../README.md](../README.md)
+- Frontend: [../frontend/README.md](../frontend/README.md)
+- Contracts: [../quid-contract/README.md](../quid-contract/README.md)

@@ -72,6 +72,34 @@ pub trait FeeCollector {
     fn deposit_fee(env: Env, from: Address, token: Address, amount: i128);
 }
 
+/// Subset of `quid-staking` used by the store. The pool only accepts calls
+/// from lockers it has explicitly allow-listed.
+#[contractclient(name = "StakingPoolClient")]
+pub trait StakingPool {
+    fn lock_for_mission(
+        env: Env,
+        locker: Address,
+        mission_id: u64,
+        hunter: Address,
+        token_address: Address,
+        amount: i128,
+    );
+    fn unlock_for_mission(
+        env: Env,
+        locker: Address,
+        mission_id: u64,
+        hunter: Address,
+        token_address: Address,
+    );
+    fn slash_for_mission(
+        env: Env,
+        locker: Address,
+        mission_id: u64,
+        hunter: Address,
+        token_address: Address,
+    );
+}
+
 #[contract]
 pub struct QuidStoreContract;
 
@@ -207,8 +235,18 @@ impl QuidStoreContract {
             return Err(QuidError::InvalidAmount);
         }
 
-        let token_client = token::Client::new(&env, &stake_token);
-        token_client.transfer(&hunter, env.current_contract_address(), &stake_amount);
+        if let Some(pool) = Self::staking_pool(&env) {
+            StakingPoolClient::new(&env, &pool).lock_for_mission(
+                &env.current_contract_address(),
+                &mission_id,
+                &hunter,
+                &stake_token,
+                &stake_amount,
+            );
+        } else {
+            let token_client = token::Client::new(&env, &stake_token);
+            token_client.transfer(&hunter, env.current_contract_address(), &stake_amount);
+        }
 
         let stake_key = DataKey::HunterStake(mission_id, hunter.clone());
         env.storage().persistent().set(&stake_key, &stake_amount);
@@ -312,8 +350,7 @@ impl QuidStoreContract {
             &mission.reward_amount,
         );
 
-        // Refund the hunter's stake since they won
-        Self::refund_stake(
+        Self::release_stake(
             &env,
             mission_id,
             hunter.clone(),
@@ -412,6 +449,23 @@ impl QuidStoreContract {
         Self::slash_stake(&env, mission_id, hunter, stake_token)
     }
 
+    /// Configure the reusable hunter stake pool. The pool must separately
+    /// allow-list this store with `set_locker` before pooled submissions work.
+    pub fn set_staking_pool(env: Env, new_pool: Address) {
+        if let Some(current) = Self::staking_pool(&env) {
+            current.require_auth();
+        } else {
+            new_pool.require_auth();
+        }
+        env.storage()
+            .instance()
+            .set(&DataKey::StakingPool, &new_pool);
+    }
+
+    pub fn get_staking_pool(env: Env) -> Result<Address, QuidError> {
+        Self::staking_pool(&env).ok_or(QuidError::StakingPoolNotSet)
+    }
+
     pub fn get_mission_count(env: Env) -> u64 {
         env.storage()
             .instance()
@@ -441,6 +495,10 @@ impl QuidStoreContract {
         count += 1;
         env.storage().instance().set(&DataKey::MissionCount, &count);
         count
+    }
+
+    fn staking_pool(env: &Env) -> Option<Address> {
+        env.storage().instance().get(&DataKey::StakingPool)
     }
 
     /// Set the protocol treasury address. Must be called by the treasury itself.
@@ -550,13 +608,24 @@ impl QuidStoreContract {
         hunter: Address,
         stake_token: Address,
     ) -> Result<(), QuidError> {
-        let key = DataKey::HunterStake(mission_id, hunter);
+        let key = DataKey::HunterStake(mission_id, hunter.clone());
 
         let amount: i128 = env
             .storage()
             .persistent()
             .get(&key)
             .ok_or(QuidError::StakeNotFound)?;
+
+        if let Some(pool) = Self::staking_pool(env) {
+            StakingPoolClient::new(env, &pool).slash_for_mission(
+                &env.current_contract_address(),
+                &mission_id,
+                &hunter,
+                &stake_token,
+            );
+            env.storage().persistent().remove(&key);
+            return Ok(());
+        }
 
         let treasury = Self::get_treasury(env.clone())?;
 
@@ -571,16 +640,27 @@ impl QuidStoreContract {
         Ok(())
     }
 
-    /// Private function
-    /// Refund a hunter's stake back to them.
-    /// Used during payout (for winners) and rejection (for honest losers).
-    fn refund_stake(
+    /// Release a stake lock back to the hunter's available pool balance.
+    fn release_stake(
         env: &Env,
         mission_id: u64,
         hunter: Address,
         stake_token: Address,
     ) -> Result<(), QuidError> {
         let key = DataKey::HunterStake(mission_id, hunter.clone());
+
+        if env.storage().persistent().has(&key) {
+            if let Some(pool) = Self::staking_pool(env) {
+                StakingPoolClient::new(env, &pool).unlock_for_mission(
+                    &env.current_contract_address(),
+                    &mission_id,
+                    &hunter,
+                    &stake_token,
+                );
+                env.storage().persistent().remove(&key);
+                return Ok(());
+            }
+        }
 
         if let Some(amount) = env.storage().persistent().get::<DataKey, i128>(&key) {
             token::Client::new(env, &stake_token).transfer(

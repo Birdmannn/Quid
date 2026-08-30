@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { BriefcaseBusiness, ChevronLeft, ChevronRight, Send } from "lucide-react";
 import SubmitFeedbackModal from "@/components/hunter/SubmitFeedbackModal";
+import { PendingBadge } from "@/components/ui/PendingBadge";
+import { usePendingTx } from "@/app/hooks/usePendingTx";
+import { useWallet } from "@/context/WalletProvider";
+import type { SubmissionReceipt } from "@/lib/soroban-client";
 
 type QuestStatus = "Submitted" | "Reviewing" | "Open";
 type QuestTab = "for-you" | "all-quest" | "my-quest";
@@ -139,11 +143,16 @@ const initialQuestsByTab: Record<QuestTab, Quest[]> = {
 
 const QUESTS_PER_PAGE = 5;
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
 export default function HunterQuestTabs() {
   const [activeTab, setActiveTab] = useState<QuestTab>("for-you");
   const [allQuestPage, setAllQuestPage] = useState(1);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [questsState, setQuestsState] = useState<Record<QuestTab, Quest[]>>(initialQuestsByTab);
+
+  const { publicKey } = useWallet();
+  const { isPending, addPendingTx } = usePendingTx(API_URL, publicKey);
 
   const quests = questsState[activeTab];
   const showPagination = activeTab === "all-quest";
@@ -160,8 +169,16 @@ export default function HunterQuestTabs() {
     [activeTab],
   );
 
-  const handleSubmissionSuccess = () => {
+  /**
+   * Issue #349: called by SubmitFeedbackModal after on-chain sign succeeds.
+   * Immediately adds an optimistic "Pending" entry so the row shows the badge
+   * while the indexer catches up.
+   */
+  const handleSubmissionSuccess = (receipt: SubmissionReceipt) => {
     if (!selectedQuest) return;
+
+    // Register the pending tx so the badge appears right away
+    addPendingTx(selectedQuest.id, receipt.txHash);
 
     const submittedQuest: Quest = {
       ...selectedQuest,
@@ -222,6 +239,7 @@ export default function HunterQuestTabs() {
             <QuestRow
               key={quest.id}
               quest={quest}
+              isPending={isPending(quest.id)}
               onSubmitFeedback={() => setSelectedQuest(quest)}
             />
           ))}
@@ -250,9 +268,11 @@ export default function HunterQuestTabs() {
 
 function QuestRow({
   quest,
+  isPending,
   onSubmitFeedback,
 }: {
   quest: Quest;
+  isPending: boolean;
   onSubmitFeedback: () => void;
 }) {
   const isSubmitted = quest.status === "Submitted" || quest.status === "Reviewing";
@@ -296,7 +316,10 @@ function QuestRow({
           <Image src="/dashboard/xlm.svg" alt="" width={38} height={38} />
           <span>{quest.reward}</span>
         </div>
-        {!isSubmitted ? (
+        {/* Issue #349: show PendingBadge when tx is signed but indexer hasn't caught up yet */}
+        {isPending ? (
+          <PendingBadge />
+        ) : !isSubmitted ? (
           <button
             type="button"
             onClick={onSubmitFeedback}

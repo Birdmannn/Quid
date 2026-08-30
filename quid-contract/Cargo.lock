@@ -1018,10 +1018,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "quid-mission-factory"
+name = "quid-quest-bundle"
 version = "0.0.0"
 dependencies = [
- "quid-store",
  "soroban-sdk",
 ]
 
